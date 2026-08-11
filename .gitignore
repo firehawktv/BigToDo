@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+dist/
+.env
+
+# Subagent-driven-development scratch workspace
+.superpowers/
+
+# Harness-managed worktrees
+.claude/worktrees/
