@@ -68,16 +68,23 @@ export async function proposeBreakdown(
   const details = task.notes === null ? task.title : `${task.title}\n\nNotes: ${task.notes}`
 
   try {
-    response = await anthropic.messages.create({
-      model: aiConfig.breakdownModel,
-      max_tokens: 16_000,
-      system: SYSTEM_PROMPT,
-      output_config: {
-        effort: 'medium',
-        format: { type: 'json_schema', schema: BREAKDOWN_SCHEMA },
+    response = await anthropic.messages.create(
+      {
+        model: aiConfig.breakdownModel,
+        max_tokens: 8_000,
+        system: SYSTEM_PROMPT,
+        output_config: {
+          effort: 'medium',
+          format: { type: 'json_schema', schema: BREAKDOWN_SCHEMA },
+        },
+        messages: [{ role: 'user', content: `Break down this task:\n\n${details}` }],
       },
-      messages: [{ role: 'user', content: `Break down this task:\n\n${details}` }],
-    })
+      // A per-request override: the client-wide timeout disables the SDK's
+      // automatic timeout scaling for large max_tokens, and Sonnet 5 runs
+      // adaptive thinking by default here, so give this specific call more
+      // room than the client default.
+      { timeout: 120_000 },
+    )
   } catch (error) {
     throw new AiUnavailableError('Claude request failed', 'request_failed', { cause: error })
   }

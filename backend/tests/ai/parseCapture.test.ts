@@ -125,6 +125,50 @@ describe('parseCapture', () => {
     expect(drafts[0]?.dueAt).toBeNull()
   })
 
+  it('truncates a title longer than the 500-character contract limit', async () => {
+    const longTitle = 'x'.repeat(600)
+    create.mockResolvedValue(
+      mockAnthropicResponse({
+        tasks: [
+          {
+            title: longTitle,
+            notes: null,
+            priority: 'low',
+            dueAt: null,
+            estimatedMinutes: null,
+            suggestBreakdown: false,
+          },
+        ],
+      }),
+    )
+
+    const drafts = await parseCapture('...')
+
+    expect(drafts[0]?.title).toHaveLength(500)
+    expect(drafts[0]?.title).toBe('x'.repeat(500))
+  })
+
+  it('drops a due date whose year is outside the timestamptz range', async () => {
+    create.mockResolvedValue(
+      mockAnthropicResponse({
+        tasks: [
+          {
+            title: 'Task',
+            notes: null,
+            priority: 'low',
+            dueAt: '+275760-09-13',
+            estimatedMinutes: null,
+            suggestBreakdown: false,
+          },
+        ],
+      }),
+    )
+
+    const drafts = await parseCapture('...')
+
+    expect(drafts[0]?.dueAt).toBeNull()
+  })
+
   it('coerces a non-positive estimate to null', async () => {
     create.mockResolvedValue(
       mockAnthropicResponse({

@@ -42,7 +42,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/tasks',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         body: CreateTaskSchema,
         response: { 201: TaskSchema, 400: ErrorSchema, 401: ErrorSchema },
@@ -70,7 +70,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   typedApp.get(
     '/tasks',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         querystring: ListTasksQuerySchema,
         response: {
@@ -102,7 +102,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   typedApp.get(
     '/tasks/:id',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: TaskIdParamsSchema,
         response: { 200: TaskSchema, 401: ErrorSchema, 404: ErrorSchema },
@@ -118,7 +118,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   typedApp.patch(
     '/tasks/:id',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: TaskIdParamsSchema,
         body: UpdateTaskSchema,
@@ -157,7 +157,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
   typedApp.delete(
     '/tasks/:id',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: TaskIdParamsSchema,
         response: { 204: Type.Null(), 401: ErrorSchema, 404: ErrorSchema },

@@ -37,6 +37,7 @@ describe('loadAiConfig', () => {
 
   it('rejects a zero or negative timeout', () => {
     expect(() => loadAiConfig({ ...validEnv, AI_TIMEOUT_MS: '0' })).toThrow(/AI_TIMEOUT_MS/)
+    expect(() => loadAiConfig({ ...validEnv, AI_TIMEOUT_MS: '-1' })).toThrow(/AI_TIMEOUT_MS/)
   })
 })
 

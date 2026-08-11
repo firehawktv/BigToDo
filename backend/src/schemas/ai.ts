@@ -36,12 +36,8 @@ export const BreakdownResponseSchema = Type.Object({
   subtasks: Type.Array(ProposedSubtaskSchema),
 })
 
-// minItems is deliberately NOT enforced here: schema validation runs before the
-// `preHandler` auth check, so an unauthenticated request with an empty array
-// would 400 before ever reaching the 401. The empty-list rule is checked in
-// the handler instead, after auth, so both orderings behave as documented.
 export const SaveSubtasksBodySchema = Type.Object(
-  { subtasks: Type.Array(ProposedSubtaskSchema, { maxItems: 20 }) },
+  { subtasks: Type.Array(ProposedSubtaskSchema, { minItems: 1, maxItems: 20 }) },
   { additionalProperties: false },
 )
 

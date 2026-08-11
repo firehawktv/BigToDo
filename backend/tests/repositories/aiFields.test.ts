@@ -4,7 +4,6 @@ import { setupTestDatabase, truncateAll } from '../helpers/db.js'
 import { createTask, getTask, updateTask } from '../../src/repositories/tasks.js'
 import {
   createCaptureBatch,
-  getCaptureBatch,
   setCaptureBatchParseStatus,
 } from '../../src/repositories/captureBatches.js'
 

@@ -44,6 +44,18 @@ describe('breakdown routes', () => {
     }
   })
 
+  // Regression guard for auth running as onRequest (before schema validation):
+  // a schema-violating body from an unauthenticated caller must still 401,
+  // not 400 — auth has to run before the body is ever validated.
+  it('401s an unauthenticated request even when the body violates the schema', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/tasks/${MISSING_ID}/subtasks`,
+      payload: { subtasks: [] },
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
   it('proposes subtasks without saving anything', async () => {
     const task = await createTask({ title: 'Redesign the site', suggestBreakdown: true })
     proposeBreakdown.mockResolvedValue([

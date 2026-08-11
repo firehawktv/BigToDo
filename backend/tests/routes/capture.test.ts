@@ -254,6 +254,89 @@ describe('POST /capture-batches/:id/parse', () => {
 
     expect(response.statusCode).toBe(409)
   })
+
+  // The plan-1/plan-2 seam: a batch created via the plan-1 endpoint (which
+  // only stores raw text and never parses) must be reachable by /parse, or
+  // it is stuck `pending` forever.
+  it('parses a pending batch created via POST /capture-batches', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/capture-batches',
+      headers: authHeaders(),
+      payload: { rawText: 'buy milk' },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json().parseStatus).toBe('pending')
+    const batchId = created.json().id
+
+    parseCapture.mockResolvedValueOnce([
+      {
+        title: 'Buy milk',
+        notes: null,
+        priority: 'low',
+        dueAt: null,
+        estimatedMinutes: 5,
+        suggestBreakdown: false,
+      },
+    ])
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/capture-batches/${batchId}/parse`,
+      headers: authHeaders(),
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.batch.parseStatus).toBe('parsed')
+    expect(body.tasks).toHaveLength(1)
+    expect(body.tasks[0].title).toBe('Buy milk')
+  })
+
+  it('does not delete subtasks the user created under the fallback task', async () => {
+    const batchId = await failedCapture('buy milk')
+    const fallback = (
+      await app.inject({
+        method: 'GET',
+        url: `/capture-batches/${batchId}`,
+        headers: authHeaders(),
+      })
+    ).json().tasks[0]
+
+    const subtaskResponse = await app.inject({
+      method: 'POST',
+      url: `/tasks/${fallback.id}/subtasks`,
+      headers: authHeaders(),
+      payload: { subtasks: [{ title: 'Buy 2%', estimatedMinutes: 5 }] },
+    })
+    expect(subtaskResponse.statusCode).toBe(201)
+    const childId = subtaskResponse.json().tasks[0].id
+
+    parseCapture.mockResolvedValueOnce([
+      {
+        title: 'Buy milk',
+        notes: null,
+        priority: 'low',
+        dueAt: null,
+        estimatedMinutes: 5,
+        suggestBreakdown: false,
+      },
+    ])
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/capture-batches/${batchId}/parse`,
+      headers: authHeaders(),
+    })
+
+    expect(response.statusCode).toBe(200)
+    const child = await app.inject({
+      method: 'GET',
+      url: `/tasks/${childId}`,
+      headers: authHeaders(),
+    })
+    expect(child.statusCode).toBe(200)
+  })
 })
 
 describe('GET /tasks/available', () => {

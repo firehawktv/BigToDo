@@ -9,7 +9,7 @@ describe('bearer token auth', () => {
   beforeAll(async () => {
     app = await buildTestApp()
     // A throwaway protected route: this test is about the guard, not about tasks.
-    app.get('/protected', { preHandler: app.requireAuth }, async () => ({ ok: true }))
+    app.get('/protected', { onRequest: app.requireAuth }, async () => ({ ok: true }))
     await app.ready()
   })
 

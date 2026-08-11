@@ -106,6 +106,15 @@ describe('proposeBreakdown', () => {
     })
   })
 
+  it('gives the call a per-request timeout override', async () => {
+    create.mockResolvedValue(mockAnthropicResponse({ subtasks: [] }))
+
+    await proposeBreakdown({ title: 'Plan the trip', notes: null })
+
+    const options = create.mock.calls[0]![1]
+    expect(options).toMatchObject({ timeout: 120_000 })
+  })
+
   it('wraps a transport failure', async () => {
     create.mockRejectedValue(new Error('ETIMEDOUT'))
 

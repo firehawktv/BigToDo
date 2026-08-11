@@ -104,7 +104,10 @@ Tasks always come back ordered: priority high → low, then soonest `dueAt`
 `POST /capture-batches` stores the freeform text dump verbatim (newlines
 included) before any AI parsing runs, so input survives even if parsing later
 fails. The body is trimmed before storing; an empty or whitespace-only
-`rawText` returns `400 {"error":"rawText must not be blank"}`.
+`rawText` returns `400 {"error":"rawText must not be blank"}`. `rawText` is
+capped at 20,000 characters (client should enforce and surface this before
+submitting). This route only stores the batch — it stays `pending` until
+`POST /capture-batches/:id/parse` is called on it; see "AI behaviour" below.
 
 `GET /capture-batches/:id` returns the batch plus its linked tasks (`tasks`,
 in the same priority order as `GET /tasks`). Deleting a task does not delete
@@ -113,7 +116,9 @@ survives with an empty or shorter `tasks` list.
 
 ## AI behaviour
 
-`POST /capture` takes a freeform text dump and routes it one of two ways:
+`POST /capture` takes a freeform text dump — capped at 20,000 characters,
+same as `POST /capture-batches` (client should enforce and surface this) —
+and routes it one of two ways:
 
 - If the whole input reads as a "how much can I do?" question (e.g. "I have 20
   minutes", "half an hour free") it is answered as a **query**, not a capture:
@@ -128,18 +133,32 @@ survives with an empty or shorter `tasks` list.
   any reason, the batch is marked `failed` with `parseError` set, and exactly
   one ordinary (`source: manual`) task is created carrying the full dump in
   its `notes` — the user's input is never lost, just left for them to edit or
-  retry. `POST /capture-batches/:id/parse` retries a `failed` batch (409 if it
-  isn't failed), first deleting any task already linked to it so a retry
-  doesn't leave the old fallback task behind as a duplicate.
+  retry.
+
+`POST /capture-batches/:id/parse` is how a batch actually gets parsed — this
+covers both a batch left `pending` by `POST /capture-batches` (which never
+parses on its own) and a `failed` batch from a previous attempt. It 409s only
+when the batch has already parsed successfully (`parseStatus: 'parsed'`); a
+`pending` or `failed` batch can always be (re)parsed. Retrying deletes only
+the fallback task from a previous failed attempt (`source: manual`, no
+parent, no subtasks of its own) so a retry doesn't leave a duplicate behind —
+it never deletes a task the parse itself produced (`ai_parsed`) or one the
+user has since broken down into subtasks, since either may be work the user
+doesn't want to lose.
 
 Model choice: `claude-haiku-4-5` (cheap, fast) parses every capture; the
 stronger `claude-sonnet-5` only runs when the user explicitly asks for a
 breakdown, via `POST /tasks/:id/breakdown`. That route proposes 3–7 concrete
 subtasks for a task and **persists nothing** — the user reviews and edits the
-proposal, then `POST /tasks/:id/subtasks` saves the edited list as real tasks
-(`source: ai_breakdown`) under the parent and clears the parent's
-`suggestBreakdown` flag, since the "Break this down?" affordance no longer
-applies once the task actually has children.
+proposal, then `POST /tasks/:id/subtasks` (at most 20 subtasks per call)
+saves the edited list as real tasks (`source: ai_breakdown`) under the parent
+and clears the parent's `suggestBreakdown` flag, since the "Break this down?"
+affordance no longer applies once the task actually has children.
+
+A `503` from `POST /tasks/:id/breakdown` means Claude was unavailable for
+this call (timeout, refusal, malformed response, etc.) — it is expected and
+retryable, not a bug. The client should let the user try again rather than
+treat it as a hard failure.
 
 `suggestBreakdown` on a task is set by the Haiku parser when a captured item
 reads as a vague project rather than a single action (e.g. "redesign the

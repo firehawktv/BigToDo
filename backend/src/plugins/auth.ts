@@ -1,11 +1,11 @@
 import { timingSafeEqual } from 'node:crypto'
-import type { FastifyPluginAsync, preHandlerHookHandler } from 'fastify'
+import type { FastifyPluginAsync, onRequestHookHandler } from 'fastify'
 import fp from 'fastify-plugin'
 import { config } from '../config.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
-    requireAuth: preHandlerHookHandler
+    requireAuth: onRequestHookHandler
   }
 }
 
@@ -24,7 +24,7 @@ function tokensMatch(provided: string, expected: string): boolean {
 }
 
 const authPlugin: FastifyPluginAsync = async (app) => {
-  const requireAuth: preHandlerHookHandler = async (request, reply) => {
+  const requireAuth: onRequestHookHandler = async (request, reply) => {
     const header = request.headers.authorization
     if (header === undefined || !header.startsWith(BEARER_PREFIX)) {
       return reply.code(401).send({ error: 'Unauthorized' })

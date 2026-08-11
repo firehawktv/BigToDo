@@ -74,8 +74,8 @@ async function runParse(
     return { batch: updated ?? batch, tasks }
   } catch (error) {
     if (!(error instanceof AiUnavailableError)) throw error
-    const tasks = await createTasks([fallbackTask(batch.rawText, batch.id)])
     const updated = await setCaptureBatchParseStatus(batch.id, 'failed', error.message)
+    const tasks = await createTasks([fallbackTask(batch.rawText, batch.id)])
     return { batch: updated ?? batch, tasks }
   }
 }
@@ -86,7 +86,7 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/capture',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         body: CaptureBodySchema,
         response: {
@@ -128,7 +128,7 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/capture-batches/:id/parse',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: CaptureBatchIdParamsSchema,
         response: {
@@ -142,14 +142,22 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const batch = await getCaptureBatch(request.params.id)
       if (batch === null) return reply.code(404).send({ error: 'Capture batch not found' })
-      if (batch.parseStatus !== 'failed') {
-        return reply.code(409).send({ error: 'Only a failed capture batch can be re-parsed' })
+      if (batch.parseStatus === 'parsed') {
+        return reply.code(409).send({ error: 'This capture batch has already been parsed' })
       }
 
-      // Clear the fallback task from the previous attempt so a retry doesn't
-      // leave a duplicate behind.
+      // Clear the fallback task from the previous failed attempt so a retry
+      // doesn't leave a duplicate behind — but only the fallback shape
+      // (source: manual, no parent, and not broken down into subtasks).
+      // Anything the parse itself produced is ai_parsed; anything the user
+      // broke down has children. Either is the user's own work, so it is
+      // left alone rather than cascade-deleted.
       for (const stale of await listTasks({ captureBatchId: batch.id })) {
-        await deleteTask(stale.id)
+        if (stale.source !== 'manual' || stale.parentTaskId !== null) continue
+        const children = await listTasks({ parentTaskId: stale.id })
+        if (children.length === 0) {
+          await deleteTask(stale.id)
+        }
       }
 
       const result = await runParse(batch)
@@ -164,7 +172,7 @@ export async function captureRoutes(app: FastifyInstance): Promise<void> {
   typedApp.get(
     '/tasks/available',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         querystring: AvailableQuerySchema,
         response: { 200: AvailableResponseSchema, 400: ErrorSchema, 401: ErrorSchema },

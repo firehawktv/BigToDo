@@ -17,7 +17,7 @@ export async function breakdownRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/tasks/:id/breakdown',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: TaskIdParamsSchema,
         response: {
@@ -49,7 +49,7 @@ export async function breakdownRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/tasks/:id/subtasks',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: TaskIdParamsSchema,
         body: SaveSubtasksBodySchema,
@@ -64,10 +64,6 @@ export async function breakdownRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const parent = await getTask(request.params.id)
       if (parent === null) return reply.code(404).send({ error: 'Task not found' })
-
-      if (request.body.subtasks.length === 0) {
-        return reply.code(400).send({ error: 'subtasks must not be empty' })
-      }
 
       const subtasks = request.body.subtasks.map((subtask) => ({
         ...subtask,

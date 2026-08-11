@@ -69,13 +69,22 @@ interface RawDraft {
   suggestBreakdown?: unknown
 }
 
+/** Postgres timestamptz can't hold a year outside this range. */
+const MIN_TIMESTAMP_YEAR = 1
+const MAX_TIMESTAMP_YEAR = 9999
+
 function toDate(value: unknown): Date | null {
   if (typeof value !== 'string' || value.trim() === '') return null
   const date = new Date(value)
   // The model occasionally returns something human-readable rather than ISO.
   // A bad date is not worth failing the whole batch over — drop it and let the
   // user set one, which they can already do by editing the task.
-  return Number.isNaN(date.getTime()) ? null : date
+  if (Number.isNaN(date.getTime())) return null
+  // JS Date accepts years outside 1..9999 (e.g. '+275760-09-13') that Postgres
+  // timestamptz cannot store — dropping those here avoids a 500 on insert.
+  const year = date.getUTCFullYear()
+  if (year < MIN_TIMESTAMP_YEAR || year > MAX_TIMESTAMP_YEAR) return null
+  return date
 }
 
 function toEstimate(value: unknown): number | null {
@@ -84,9 +93,13 @@ function toEstimate(value: unknown): number | null {
   return Math.min(value, 100_000)
 }
 
+/** Matches the cap CreateTaskSchema and ProposedSubtaskSchema put on a title. */
+const MAX_TITLE_LENGTH = 500
+
 function toDraft(raw: RawDraft): ParsedTaskDraft | null {
-  const title = typeof raw.title === 'string' ? raw.title.trim() : ''
-  if (title === '') return null
+  const trimmed = typeof raw.title === 'string' ? raw.title.trim() : ''
+  if (trimmed === '') return null
+  const title = trimmed.slice(0, MAX_TITLE_LENGTH)
 
   return {
     title,
@@ -110,7 +123,7 @@ export async function parseCapture(rawText: string, now: Date = new Date()): Pro
     // `stop_reason` field allows `null` too — no cast needed here either.
     response = await anthropic.messages.create({
       model: aiConfig.parseModel,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
       messages: [

@@ -17,7 +17,7 @@ export async function captureBatchRoutes(app: FastifyInstance): Promise<void> {
   typedApp.post(
     '/capture-batches',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         body: CreateCaptureBatchSchema,
         response: { 201: CaptureBatchSchema, 400: ErrorSchema, 401: ErrorSchema },
@@ -36,7 +36,7 @@ export async function captureBatchRoutes(app: FastifyInstance): Promise<void> {
   typedApp.get(
     '/capture-batches/:id',
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: {
         params: CaptureBatchIdParamsSchema,
         response: { 200: CaptureBatchWithTasksSchema, 401: ErrorSchema, 404: ErrorSchema },
