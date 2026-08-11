@@ -417,6 +417,10 @@ export interface BuildAppOptions {
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: opts.logger === false ? false : { level: config.logLevel },
+    // Fastify's default ajv config sets removeAdditional: true, which silently
+    // STRIPS unknown properties. Our schemas declare additionalProperties: false
+    // because they want a 400, not a quiet edit of the caller's payload.
+    ajv: { customOptions: { removeAdditional: false } },
   }).withTypeProvider<TypeBoxTypeProvider>()
 
   await app.register(healthRoutes)
@@ -1799,7 +1803,7 @@ Expected: FAIL — every request returns 404 because `/tasks` is not registered.
 ```ts
 import type { FastifyInstance } from 'fastify'
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox'
-import { Type } from '@sinclair/typebox'
+import { Type, type Static } from '@sinclair/typebox'
 import {
   CreateTaskSchema,
   ErrorSchema,
@@ -1815,7 +1819,10 @@ import {
   listTasks,
   updateTask,
   type ListTasksFilter,
+  type Task,
 } from '../repositories/tasks.js'
+
+type TaskResponse = Static<typeof TaskSchema>
 
 /** Postgres foreign-key violation — raised when parentTaskId points nowhere. */
 const FOREIGN_KEY_VIOLATION = '23503'
@@ -1823,6 +1830,24 @@ const FOREIGN_KEY_VIOLATION = '23503'
 function isForeignKeyViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error &&
     (error as { code?: string }).code === FOREIGN_KEY_VIOLATION
+}
+
+/**
+ * The repository returns Date objects; TaskSchema declares ISO strings. Convert
+ * explicitly rather than casting — fast-json-stringify would serialize the Dates
+ * for us, but a cast would switch off type checking at exactly the boundary that
+ * catches field-shape drift, and would break the moment this is called outside
+ * the response pipeline. createdAt is non-nullable: no `?.` here, so a null
+ * surfaces as a bug instead of being quietly tolerated.
+ */
+function toResponse(task: Task): TaskResponse {
+  return {
+    ...task,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    alertedAt: task.alertedAt?.toISOString() ?? null,
+    completedAt: task.completedAt?.toISOString() ?? null,
+    createdAt: task.createdAt.toISOString(),
+  }
 }
 
 export async function taskRoutes(app: FastifyInstance): Promise<void> {
@@ -1840,7 +1865,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       try {
         const task = await createTask(request.body)
-        return reply.code(201).send(task)
+        return reply.code(201).send(toResponse(task))
       } catch (error) {
         if (isForeignKeyViolation(error)) {
           return reply.code(400).send({ error: 'parentTaskId does not exist' })
@@ -1878,7 +1903,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       }
       if (query.limit !== undefined) filter.limit = query.limit
 
-      return { tasks: await listTasks(filter) }
+      return { tasks: (await listTasks(filter)).map(toResponse) }
     },
   )
 
@@ -1894,7 +1919,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const task = await getTask(request.params.id)
       if (task === null) return reply.code(404).send({ error: 'Task not found' })
-      return task
+      return toResponse(task)
     },
   )
 
@@ -1912,7 +1937,7 @@ export async function taskRoutes(app: FastifyInstance): Promise<void> {
       try {
         const task = await updateTask(request.params.id, request.body)
         if (task === null) return reply.code(404).send({ error: 'Task not found' })
-        return task
+        return toResponse(task)
       } catch (error) {
         if (isForeignKeyViolation(error)) {
           return reply.code(400).send({ error: 'parentTaskId does not exist' })
