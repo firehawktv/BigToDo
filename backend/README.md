@@ -16,16 +16,20 @@ npm run dev
 
 Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
-`npm run dev`, `npm start`, and `npm run migrate` all load `.env` via Node's
-`--env-file-if-exists=.env` — that file is what supplies `DATABASE_URL` and
-`API_TOKEN`. There is no other config loading step.
+`npm run dev`, `npm start`, `npm run migrate`, and `npm test` all load `.env`
+via Node's `--env-file-if-exists=.env` — that file is what supplies
+`DATABASE_URL`, `API_TOKEN`, and (for tests) `TEST_DATABASE_URL`. There is no
+other config loading step. (Vitest itself does not read `.env` — only
+`VITE_`-prefixed vars reach `import.meta.env` — so the `test`/`test:watch`
+scripts pass `--env-file-if-exists=.env` to the `node` process running Vitest
+rather than relying on Vitest to do it.)
 
 ## Tests
 
 `npm test` — runs against Postgres, single-threaded, truncating between tests.
 Requires the Docker Postgres above to be running. The database URL comes from
-`TEST_DATABASE_URL` (via `tests/setup.ts`), falling back to
-`postgres://todo:todo@localhost:5433/todo_test` if that variable is unset.
+`TEST_DATABASE_URL` (via `tests/setup.ts`, sourced from `.env`), falling back
+to `postgres://todo:todo@localhost:5433/todo_test` if that variable is unset.
 
 ## Auth
 

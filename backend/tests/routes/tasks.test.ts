@@ -259,4 +259,89 @@ describe('/tasks routes', () => {
     expect(response.statusCode).toBe(400)
     expect(response.json()).toMatchObject({ error: 'parentTaskId does not exist' })
   })
+
+  it('returns 400 naming captureBatchId when it points at a batch that does not exist', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: authHeaders(),
+      payload: { title: 'Orphan', captureBatchId: '00000000-0000-0000-0000-000000000000' },
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({ error: 'captureBatchId does not exist' })
+  })
+
+  it('rejects a whitespace-only title on create with 400', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: authHeaders(),
+      payload: { title: '   ' },
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({ error: 'title must not be blank' })
+  })
+
+  it('rejects a whitespace-only title on patch with 400', async () => {
+    const task = await createTaskViaApi({ title: 'Do the thing' })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/tasks/${task.id}`,
+      headers: authHeaders(),
+      payload: { title: '  ' },
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({ error: 'title must not be blank' })
+  })
+
+  it('stores a title trimmed of surrounding whitespace', async () => {
+    const created = await createTaskViaApi({ title: '  Buy milk  ' })
+    expect(created.title).toBe('Buy milk')
+
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: `/tasks/${created.id}`,
+      headers: authHeaders(),
+      payload: { title: '  Buy oat milk  ' },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().title).toBe('Buy oat milk')
+  })
+
+  it('leaves title untouched when absent from a patch', async () => {
+    const task = await createTaskViaApi({ title: 'Original title' })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/tasks/${task.id}`,
+      headers: authHeaders(),
+      payload: { status: 'done' },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json().title).toBe('Original title')
+  })
+
+  it('rejects estimatedMinutes over the maximum with 400', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/tasks',
+      headers: authHeaders(),
+      payload: { title: 'Too long', estimatedMinutes: 9999999999 },
+    })
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('rejects a task set as its own parent with 400', async () => {
+    const task = await createTaskViaApi({ title: 'Self-referential' })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/tasks/${task.id}`,
+      headers: authHeaders(),
+      payload: { parentTaskId: task.id },
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({ error: 'a task cannot be its own parent' })
+  })
 })

@@ -45,7 +45,9 @@ export const CreateTaskSchema = Type.Object(
     notes: Type.Optional(Nullable(Type.String({ maxLength: 10_000 }))),
     priority: Type.Optional(TaskPrioritySchema),
     dueAt: Type.Optional(Nullable(DateTimeSchema)),
-    estimatedMinutes: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Null()])),
+    estimatedMinutes: Type.Optional(
+      Type.Union([Type.Integer({ minimum: 1, maximum: 100_000 }), Type.Null()]),
+    ),
     parentTaskId: Type.Optional(Nullable(UuidSchema)),
     captureBatchId: Type.Optional(Nullable(UuidSchema)),
     source: Type.Optional(TaskSourceSchema),
@@ -60,7 +62,9 @@ export const UpdateTaskSchema = Type.Object(
     status: Type.Optional(TaskStatusSchema),
     priority: Type.Optional(TaskPrioritySchema),
     dueAt: Type.Optional(Nullable(DateTimeSchema)),
-    estimatedMinutes: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Null()])),
+    estimatedMinutes: Type.Optional(
+      Type.Union([Type.Integer({ minimum: 1, maximum: 100_000 }), Type.Null()]),
+    ),
     parentTaskId: Type.Optional(Nullable(UuidSchema)),
   },
   { additionalProperties: false, minProperties: 1 },
