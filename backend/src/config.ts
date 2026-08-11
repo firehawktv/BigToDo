@@ -1,3 +1,5 @@
+import { required } from './env.js'
+
 export interface Config {
   databaseUrl: string
   apiToken: string
@@ -7,14 +9,6 @@ export interface Config {
 }
 
 const MIN_TOKEN_LENGTH = 32
-
-function required(env: NodeJS.ProcessEnv, key: string): string {
-  const value = env[key]
-  if (value === undefined || value.trim() === '') {
-    throw new Error(`Missing required environment variable: ${key}`)
-  }
-  return value
-}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const databaseUrl = required(env, 'DATABASE_URL')
