@@ -3,6 +3,7 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox'
 import { config } from './config.js'
 import { healthRoutes } from './routes/health.js'
 import { taskRoutes } from './routes/tasks.js'
+import { captureBatchRoutes } from './routes/captureBatches.js'
 import authPlugin from './plugins/auth.js'
 
 export interface BuildAppOptions {
@@ -22,6 +23,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(authPlugin)
   await app.register(healthRoutes)
   await app.register(taskRoutes)
+  await app.register(captureBatchRoutes)
 
   return app
 }
