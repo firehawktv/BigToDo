@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildTestApp, authHeaders } from './helpers/app.js'
+import { config } from '../src/config.js'
 
 describe('bearer token auth', () => {
   let app: FastifyInstance
@@ -32,10 +33,13 @@ describe('bearer token auth', () => {
   })
 
   it('rejects a wrong token of the same length', async () => {
+    const forgedToken = 'b'.repeat(config.apiToken.length)
+    expect(forgedToken.length).toBe(config.apiToken.length)
+
     const response = await app.inject({
       method: 'GET',
       url: '/protected',
-      headers: { authorization: `Bearer ${'b'.repeat(40)}` },
+      headers: { authorization: `Bearer ${forgedToken}` },
     })
     expect(response.statusCode).toBe(401)
   })
