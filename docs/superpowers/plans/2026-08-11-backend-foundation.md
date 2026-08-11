@@ -767,6 +767,7 @@ One shared token guards every route except `/health`. Deliverable: protected rou
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildTestApp, authHeaders } from './helpers/app.js'
+import { config } from '../src/config.js'
 
 describe('bearer token auth', () => {
   let app: FastifyInstance
@@ -798,10 +799,16 @@ describe('bearer token auth', () => {
   })
 
   it('rejects a wrong token of the same length', async () => {
+    // Derive the length from the real token: a hardcoded length that happens
+    // not to match sends this test down the length-mismatch branch instead of
+    // the constant-time comparison it exists to cover.
+    const forged = 'b'.repeat(config.apiToken.length)
+    expect(forged.length).toBe(config.apiToken.length)
+
     const response = await app.inject({
       method: 'GET',
       url: '/protected',
-      headers: { authorization: `Bearer ${'b'.repeat(40)}` },
+      headers: { authorization: `Bearer ${forged}` },
     })
     expect(response.statusCode).toBe(401)
   })
