@@ -43,6 +43,12 @@ export function shouldSendCheckIn(input: ShouldSendCheckInInput): boolean {
 
   if (minutesOfDay < from || minutesOfDay >= to) return false
 
+  // On a DST-transition day, zonedNow's minutesOfDay can jump or repeat an
+  // hour of wall-clock time relative to real elapsed time, so this over- or
+  // under-counts ticksRemaining by up to 60/tickMinutes for that day. It
+  // self-corrects: the next tick recomputes ticksRemaining from the clock
+  // again, so the probability re-establishes the correct owed/remaining
+  // ratio and no check-ins are lost, just redistributed within the day.
   const ticksRemaining = Math.ceil((to - minutesOfDay) / tickMinutes)
   if (ticksRemaining <= 0) return false
 

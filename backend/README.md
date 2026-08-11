@@ -236,6 +236,21 @@ end to end — especially on iOS, where PWA push has extra install and
 permission requirements — is fiddly enough to be worth a dedicated
 just-try-it endpoint rather than only finding out via a deadline or check-in.
 
+### Notification payload
+
+Every push sent by the server — deadline alerts, check-ins, and `POST
+/push/test` — uses the same payload shape, delivered as the `data` string on
+the `push` event:
+
+```json
+{ "title": "string", "body": "string", "url": "string | undefined" }
+```
+
+The service worker should `JSON.parse` the event data to get this object.
+`url` is the path or URL to open when the notification is tapped; it is
+optional on the wire, but both scheduler sweeps and `POST /push/test`
+currently always send `APP_URL`.
+
 ### Check-in settings
 
 `GET /check-in-settings` returns, and `PATCH /check-in-settings` partially
@@ -275,9 +290,16 @@ Each tick runs two sweeps:
 
 - **Deadline alerts.** Open tasks whose `dueAt` falls within
   `DEADLINE_LEAD_MINUTES` (including tasks already overdue, e.g. ones that
-  were due while the service was down) get one push each, and are stamped
-  with `alerted_at` so the same task never alerts twice — idempotent even
-  across restarts, since the stamp is in the database rather than in memory.
+  were due while the service was down) get one push each. `alerted_at` is
+  stamped only once the push was actually delivered to at least one device —
+  a task with no registered subscriptions yet is left un-alerted and is
+  re-examined on the next tick, so installing the app and granting
+  permission later still gets the alert. Once stamped, the same task never
+  alerts twice — idempotent even across restarts, since the stamp is in the
+  database rather than in memory. Rescheduling a task (`PATCH /tasks/:id`
+  with a new `dueAt`) clears any existing `alerted_at`, so a task that was
+  already alerted and then pushed to a new date gets a fresh alert for the
+  new date.
 - **Check-ins.** Randomized across the configured active window, rather than
   scheduled at fixed times: each tick computes the probability that *this*
   tick should be one of the day's remaining check-ins from how many are still
@@ -296,6 +318,6 @@ without consuming that day's check-in quota or marking a task alerted.
 
 ## Migrations
 
-Add a numbered file to `src/db/migrations/` (e.g. `002_push.sql`) and run
-`npm run migrate`. Applied files are recorded in `schema_migrations` and never
-re-run.
+Add a numbered file to `src/db/migrations/` (e.g. `004_your_change.sql`) and
+run `npm run migrate`. Applied files are recorded in `schema_migrations` and
+never re-run.

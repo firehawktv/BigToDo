@@ -254,6 +254,15 @@ export async function updateTask(id: string, patch: UpdateTaskInput): Promise<Ta
     )
   }
 
+  // Rescheduling a task must re-arm its deadline alert: alerted_at is what
+  // listTasksDueForAlert uses to decide a task has already been notified
+  // about, and a stale stamp from before the reschedule would suppress the
+  // alert for the new due date forever. An explicit alertedAt in the same
+  // patch (how the sweep stamps it) wins over this.
+  if (patch.dueAt !== undefined && patch.alertedAt === undefined) {
+    assignments.push('alerted_at = NULL')
+  }
+
   if (assignments.length === 0) return getTask(id)
 
   values.push(id)

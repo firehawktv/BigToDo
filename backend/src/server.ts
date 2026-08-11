@@ -16,12 +16,13 @@ startScheduler(app.log)
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     stopScheduler()
-    app.close().then(
-      () => process.exit(0),
-      (error) => {
-        app.log.error(error)
-        process.exit(1)
-      },
-    )
+      .then(() => app.close())
+      .then(
+        () => process.exit(0),
+        (error) => {
+          app.log.error(error)
+          process.exit(1)
+        },
+      )
   })
 }

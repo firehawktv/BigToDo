@@ -77,18 +77,24 @@ describe('runDeadlineSweep', () => {
     expect((await getTask(task.id))?.alertedAt).toBeNull()
   })
 
-  it('stamps alertedAt when there are no subscriptions at all', async () => {
-    // Nobody to notify is not a failure — otherwise every task would be
-    // re-checked forever on a device-less install.
+  it('does not stamp alertedAt when there are no subscriptions at all, so it can alert once one exists', async () => {
+    // Nobody to notify means nobody was actually alerted — stamping here
+    // would permanently consume the one alert this task ever gets. Leaving
+    // it unstamped costs one indexed query per tick and self-corrects the
+    // moment a device subscribes.
     const task = await createTask({ title: 'Call the dentist', dueAt: minutesFromNow(30) })
     sendToAllSubscriptions.mockResolvedValue({ sent: 0, pruned: 0, failed: 0 })
 
-    await runDeadlineSweep()
+    const result = await runDeadlineSweep()
 
-    expect((await getTask(task.id))?.alertedAt).toBeInstanceOf(Date)
+    expect(result.alerted).toBe(0)
+    expect((await getTask(task.id))?.alertedAt).toBeNull()
   })
 
   it('keeps going when one task send rejects', async () => {
+    // listTasksDueForAlert orders by due_at ASC, so 'First' (sooner) is
+    // processed before 'Second' — that ordering is what makes the rejection
+    // land on 'First' and leaves 'Second' as the one that gets alerted.
     await createTask({ title: 'First', dueAt: minutesFromNow(10) })
     await createTask({ title: 'Second', dueAt: minutesFromNow(20) })
     sendToAllSubscriptions

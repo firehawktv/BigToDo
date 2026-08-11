@@ -21,10 +21,12 @@ function alertBody(task: Task, now: Date): string {
  * Finds open tasks approaching their deadline, sends one notification each, and
  * stamps `alerted_at` so they never fire again.
  *
- * `alerted_at` is only stamped when the send did not outright fail — a task
- * whose notification could not be delivered is left for the next tick. Having
- * no subscriptions at all is not a failure: otherwise a device-less install
- * would re-examine the same tasks forever.
+ * `alerted_at` is only stamped once the notification was actually delivered to
+ * at least one device (`result.sent > 0`). A task left un-alerted because
+ * nobody was subscribed yet is left for the next tick too — re-checking is one
+ * indexed query per tick against the existing partial index, and it stops the
+ * moment a device subscribes. Stamping on a device-less send would otherwise
+ * permanently consume the one alert this task will ever get.
  *
  * Never throws; the caller is a cron tick.
  */
@@ -48,7 +50,7 @@ export async function runDeadlineSweep(
           options.logger,
         )
 
-        if (result.failed > 0 && result.sent === 0) {
+        if (result.sent === 0) {
           options.logger?.warn({ taskId: task.id }, 'deadline alert not delivered; will retry')
           continue
         }

@@ -22,19 +22,26 @@ export function startScheduler(logger: Logger): void {
   const expression = `*/${pushConfig.tickMinutes} * * * *`
   logger.info({ expression }, 'starting scheduler')
 
-  task = cron.schedule(expression, () => {
-    void (async () => {
+  // The callback must RETURN the promise it awaits — node-cron's `noOverlap`
+  // tracks in-flight executions via the returned promise, so an
+  // async-but-detached callback (`void (async () => {...})()`, which returns
+  // `undefined` synchronously) would make `noOverlap` a no-op and let ticks
+  // that overrun `tickMinutes` stack up, double-sending alerts and check-ins.
+  task = cron.schedule(
+    expression,
+    async () => {
       try {
         await runDeadlineSweep({ logger })
         await runCheckInSweep({ logger })
       } catch (error) {
         logger.warn({ err: error }, 'scheduler tick failed')
       }
-    })()
-  })
+    },
+    { noOverlap: true },
+  )
 }
 
-export function stopScheduler(): void {
-  task?.stop()
+export async function stopScheduler(): Promise<void> {
+  await task?.stop()
   task = undefined
 }
