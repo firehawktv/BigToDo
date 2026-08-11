@@ -4,6 +4,8 @@ import { config } from './config.js'
 import { healthRoutes } from './routes/health.js'
 import { taskRoutes } from './routes/tasks.js'
 import { captureBatchRoutes } from './routes/captureBatches.js'
+import { captureRoutes } from './routes/capture.js'
+import { breakdownRoutes } from './routes/breakdown.js'
 import authPlugin from './plugins/auth.js'
 
 export interface BuildAppOptions {
@@ -40,8 +42,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   await app.register(authPlugin)
   await app.register(healthRoutes)
+  // captureRoutes registers GET /tasks/available, which must be matched before
+  // taskRoutes' GET /tasks/:id — that route's params schema requires a uuid,
+  // so if it matched first "available" would 400 as a malformed id instead of
+  // reaching the shortlist handler. Route registration order is match order.
+  await app.register(captureRoutes)
   await app.register(taskRoutes)
   await app.register(captureBatchRoutes)
+  await app.register(breakdownRoutes)
 
   return app
 }

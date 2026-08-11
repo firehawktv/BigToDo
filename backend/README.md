@@ -6,7 +6,7 @@ Fastify + Postgres API for the single-user ToDo app. See
 ## Setup
 
 ```bash
-cp .env.example .env          # then set a real API_TOKEN
+cp .env.example .env          # then set a real API_TOKEN and ANTHROPIC_API_KEY
 docker compose -f docker-compose.dev.yml up -d
 docker compose -f docker-compose.dev.yml exec -T db psql -U todo -d todo -c "CREATE DATABASE todo_test;"
 npm install
@@ -15,6 +15,11 @@ npm run dev
 ```
 
 Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+
+`ANTHROPIC_API_KEY` is required to start the server (`npm run dev`/`npm start`)
+and is used server-side only — it never reaches the client. Optional
+`PARSE_MODEL`, `BREAKDOWN_MODEL`, and `AI_TIMEOUT_MS` overrides are documented
+in `.env.example`. `npm run migrate` and `npm test` do not require it.
 
 `npm run dev`, `npm start`, `npm run migrate`, and `npm test` all load `.env`
 via Node's `--env-file-if-exists=.env` — that file is what supplies
@@ -48,6 +53,11 @@ Missing or wrong tokens return `401 {"error":"Unauthorized"}`.
 | DELETE | `/tasks/:id` | — | 204 / 404 |
 | POST | `/capture-batches` | `{rawText}` | 201 `CaptureBatch` |
 | GET | `/capture-batches/:id` | — | 200 `CaptureBatch & {tasks}` / 404 |
+| POST | `/capture` | `{rawText}` | 200 shortlist / 201 batch |
+| POST | `/capture-batches/:id/parse` | — | 200 / 404 / 409 |
+| POST | `/tasks/:id/breakdown` | — | 200 `{subtasks}` / 404 / 503 |
+| POST | `/tasks/:id/subtasks` | `{subtasks}` | 201 `{tasks}` / 404 |
+| GET | `/tasks/available?minutes=N` | — | 200 `{minutes, tasks}` |
 
 `GET /tasks` query parameters: `status` (`open`/`done`), `parentTaskId` (a uuid,
 or `none` for top-level only), `captureBatchId`, `maxEstimatedMinutes`,
@@ -70,6 +80,7 @@ Tasks always come back ordered: priority high → low, then soonest `dueAt`
   "parentTaskId": "uuid | null",
   "captureBatchId": "uuid | null",
   "source": "manual | ai_parsed | ai_breakdown",
+  "suggestBreakdown": "boolean",
   "alertedAt": "ISO-8601 | null",
   "createdAt": "ISO-8601",
   "completedAt": "ISO-8601 | null"
@@ -84,6 +95,8 @@ Tasks always come back ordered: priority high → low, then soonest `dueAt`
 {
   "id": "uuid",
   "rawText": "string",
+  "parseStatus": "pending | parsed | failed",
+  "parseError": "string | null",
   "createdAt": "ISO-8601"
 }
 ```
@@ -97,6 +110,42 @@ fails. The body is trimmed before storing; an empty or whitespace-only
 in the same priority order as `GET /tasks`). Deleting a task does not delete
 its batch — `tasks.capture_batch_id` is `ON DELETE SET NULL`, so the batch
 survives with an empty or shorter `tasks` list.
+
+## AI behaviour
+
+`POST /capture` takes a freeform text dump and routes it one of two ways:
+
+- If the whole input reads as a "how much can I do?" question (e.g. "I have 20
+  minutes", "half an hour free") it is answered as a **query**, not a capture:
+  it returns `200 {type: 'shortlist', minutes, tasks}` — the top 5 open tasks
+  whose `estimatedMinutes` fits, ordered the same way as `GET /tasks` — and
+  saves nothing. No capture batch or task is created, so asking twice leaves
+  no trace.
+- Otherwise it is parsed into tasks. The raw text is saved as a `CaptureBatch`
+  **before** parsing runs, so it survives even if parsing fails. On success it
+  returns `201 {type: 'batch', batch, tasks}` with the batch marked `parsed`
+  and each task's `source` set to `ai_parsed`. If Claude is unavailable for
+  any reason, the batch is marked `failed` with `parseError` set, and exactly
+  one ordinary (`source: manual`) task is created carrying the full dump in
+  its `notes` — the user's input is never lost, just left for them to edit or
+  retry. `POST /capture-batches/:id/parse` retries a `failed` batch (409 if it
+  isn't failed), first deleting any task already linked to it so a retry
+  doesn't leave the old fallback task behind as a duplicate.
+
+Model choice: `claude-haiku-4-5` (cheap, fast) parses every capture; the
+stronger `claude-sonnet-5` only runs when the user explicitly asks for a
+breakdown, via `POST /tasks/:id/breakdown`. That route proposes 3–7 concrete
+subtasks for a task and **persists nothing** — the user reviews and edits the
+proposal, then `POST /tasks/:id/subtasks` saves the edited list as real tasks
+(`source: ai_breakdown`) under the parent and clears the parent's
+`suggestBreakdown` flag, since the "Break this down?" affordance no longer
+applies once the task actually has children.
+
+`suggestBreakdown` on a task is set by the Haiku parser when a captured item
+reads as a vague project rather than a single action (e.g. "redesign the
+website"), and is cleared automatically once subtasks are saved for that
+task. It is otherwise a plain field the client can also set directly via
+`PATCH /tasks/:id`.
 
 ## Migrations
 
