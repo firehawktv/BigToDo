@@ -105,6 +105,34 @@ describe('/check-in-settings routes', () => {
     expect(response.statusCode).toBe(400)
   })
 
+  it('rejects patching only activeTo when it would invert the stored activeFrom', async () => {
+    // Stored default is activeFrom: '09:00'. Patching only activeTo to
+    // something earlier must be checked against the stored activeFrom, not
+    // just the fields present in this request.
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/check-in-settings',
+      headers: authHeaders(),
+      payload: { activeTo: '08:00' },
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
+  it('rejects patching only activeFrom when it would invert the stored activeTo', async () => {
+    // Stored default is activeTo: '18:00'. Patching only activeFrom to
+    // something later must be checked against the stored activeTo, not just
+    // the fields present in this request.
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/check-in-settings',
+      headers: authHeaders(),
+      payload: { activeFrom: '19:00' },
+    })
+
+    expect(response.statusCode).toBe(400)
+  })
+
   it('rejects an empty patch', async () => {
     const response = await app.inject({
       method: 'PATCH',

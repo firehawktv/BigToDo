@@ -5,8 +5,16 @@ process.env.DATABASE_URL =
 process.env.API_TOKEN = 'test-token-0123456789abcdef0123456789abcdef'
 process.env.LOG_LEVEL = 'silent'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key-not-real'
-process.env.VAPID_PUBLIC_KEY = 'test-vapid-public-key'
-process.env.VAPID_PRIVATE_KEY = 'test-vapid-private-key'
+// A real-format VAPID keypair (generated once via `npm run vapid:generate`,
+// i.e. web-push's own generateVAPIDKeys()), committed as a throwaway test
+// fixture — not a leaked credential. It is used nowhere real: it exists only
+// so src/push/webPush.ts's module-scope `setVapidDetails(...)` call, which
+// validates the public key is a real 65-byte decoded EC point, succeeds at
+// import time and is actually exercised by the suite, rather than being
+// bypassed by a mock.
+process.env.VAPID_PUBLIC_KEY =
+  'BB-wMT2JNeA0jv5KRzQt4y6TRuCpf6PmXinm5H28bl2kVEbwnzS67aO3PAAuA4w-ZUv2Bm-IjI8wD1aSGbV0DJ8'
+process.env.VAPID_PRIVATE_KEY = 't-xxJu78J1ejybjtfRHBuXx90J7umgrAqBXgrym7PHw'
 process.env.VAPID_SUBJECT = 'mailto:test@example.com'
 process.env.APP_URL = 'https://todo.test'
 
@@ -30,20 +38,3 @@ vi.mock('@anthropic-ai/sdk', () => {
   }
   return { default: AnthropicMock }
 })
-
-// Same insurance, for web-push. src/push/webPush.ts calls setVapidDetails at
-// import time, and it validates the key is a real 65-byte EC point — the
-// placeholder VAPID_PUBLIC_KEY above is not, so any test that pulls in the
-// real module (e.g. by registering the app's push routes, which import
-// push/send.js) would crash before the test even runs, not just when a push
-// is sent. Tests that care about send behaviour already mock
-// src/push/webPush.js or src/push/send.js directly, which takes precedence
-// over this for that file.
-vi.mock('web-push', () => ({
-  default: {
-    setVapidDetails: () => {},
-    sendNotification: () => {
-      throw new Error('a test attempted a real push send — mock src/push/send.js or webPush.js')
-    },
-  },
-}))
