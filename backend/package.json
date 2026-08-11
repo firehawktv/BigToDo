@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "migrate": "node --env-file-if-exists=.env --import tsx/esm src/db/migrate.ts",
+    "vapid:generate": "node --import tsx/esm scripts/generate-vapid-keys.ts",
     "test": "node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run",
     "test:watch": "node --env-file-if-exists=.env node_modules/vitest/vitest.mjs"
   },
@@ -24,11 +25,14 @@
     "@sinclair/typebox": "^0.34.52",
     "fastify": "^5.11.3",
     "fastify-plugin": "^5.1.0",
-    "pg": "^8.23.0"
+    "node-cron": "^4.6.0",
+    "pg": "^8.23.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "@types/pg": "^8.21.0",
+    "@types/web-push": "^3.6.4",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

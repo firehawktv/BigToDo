@@ -5,6 +5,10 @@ process.env.DATABASE_URL =
 process.env.API_TOKEN = 'test-token-0123456789abcdef0123456789abcdef'
 process.env.LOG_LEVEL = 'silent'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key-not-real'
+process.env.VAPID_PUBLIC_KEY = 'test-vapid-public-key'
+process.env.VAPID_PRIVATE_KEY = 'test-vapid-private-key'
+process.env.VAPID_SUBJECT = 'mailto:test@example.com'
+process.env.APP_URL = 'https://todo.test'
 
 // Insurance, not correctness: every test file is expected to mock its Claude
 // dependency (src/ai/anthropic.js or a whole service module) explicitly. This
