@@ -93,8 +93,10 @@ export async function updateCheckInSettings(
   return mapRow(rows[0]!)
 }
 
-export async function recordCheckIn(): Promise<void> {
-  await pool.query('INSERT INTO check_in_events DEFAULT VALUES')
+export async function recordCheckIn(sentAt?: Date): Promise<void> {
+  await pool.query('INSERT INTO check_in_events (sent_at) VALUES (COALESCE($1, now()))', [
+    sentAt ?? null,
+  ])
 }
 
 /**

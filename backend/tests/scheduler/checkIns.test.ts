@@ -11,6 +11,7 @@ const {
   updateCheckInSettings,
 } = await import('../../src/repositories/checkInSettings.js')
 const { runCheckInSweep, shouldSendCheckIn } = await import('../../src/scheduler/checkIns.js')
+const { zonedNow } = await import('../../src/scheduler/time.js')
 
 const SETTINGS = {
   enabled: true,
@@ -125,19 +126,38 @@ describe('runCheckInSweep', () => {
   })
 
   it('sends and records a check-in when the decision says so', async () => {
-    const result = await runCheckInSweep({ now: at('09:00'), random: () => 0 })
+    const now = at('09:00')
+    const result = await runCheckInSweep({ now, random: () => 0 })
 
     expect(result.sent).toBe(true)
     expect(sendToAllSubscriptions).toHaveBeenCalledTimes(1)
-    expect(await countCheckInsOnLocalDate('2026-08-11', 'UTC')).toBe(1)
+    expect(await countCheckInsOnLocalDate(zonedNow(now, 'UTC').date, 'UTC')).toBe(1)
   })
 
   it('records nothing when the decision says no', async () => {
-    const result = await runCheckInSweep({ now: at('03:00'), random: () => 0 })
+    const now = at('03:00')
+    const result = await runCheckInSweep({ now, random: () => 0 })
 
     expect(result.sent).toBe(false)
     expect(sendToAllSubscriptions).not.toHaveBeenCalled()
-    expect(await countCheckInsOnLocalDate('2026-08-11', 'UTC')).toBe(0)
+    expect(await countCheckInsOnLocalDate(zonedNow(now, 'UTC').date, 'UTC')).toBe(0)
+  })
+
+  it('records the check-in on the injected clock, not the real database clock', async () => {
+    // A fixed historical date, guaranteed to differ from whatever day the
+    // suite actually runs on. The point is that the sweep must read and
+    // write on the SAME clock, whatever that clock says, rather than letting
+    // recordCheckIn() fall back to Postgres's real now().
+    const now = new Date('2019-03-15T09:00:00.000Z')
+    const injectedDate = zonedNow(now, 'UTC').date
+    const realDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date())
+    expect(injectedDate).not.toBe(realDate)
+
+    const result = await runCheckInSweep({ now, random: () => 0 })
+
+    expect(result.sent).toBe(true)
+    expect(await countCheckInsOnLocalDate(injectedDate, 'UTC')).toBe(1)
+    expect(await countCheckInsOnLocalDate(realDate, 'UTC')).toBe(0)
   })
 
   it('honours settings changed at runtime', async () => {
@@ -151,10 +171,11 @@ describe('runCheckInSweep', () => {
   it('does not record a check-in when delivery outright failed', async () => {
     sendToAllSubscriptions.mockResolvedValue({ sent: 0, pruned: 0, failed: 1 })
 
-    const result = await runCheckInSweep({ now: at('09:00'), random: () => 0 })
+    const now = at('09:00')
+    const result = await runCheckInSweep({ now, random: () => 0 })
 
     expect(result.sent).toBe(false)
-    expect(await countCheckInsOnLocalDate('2026-08-11', 'UTC')).toBe(0)
+    expect(await countCheckInsOnLocalDate(zonedNow(now, 'UTC').date, 'UTC')).toBe(0)
   })
 
   it('never throws', async () => {

@@ -75,4 +75,16 @@ describe('check-in settings repository', () => {
     expect(await countCheckInsOnLocalDate(today, 'UTC')).toBe(2)
     expect(await countCheckInsOnLocalDate('1999-01-01', 'UTC')).toBe(0)
   })
+
+  it('records an explicit instant rather than the database clock', async () => {
+    // A fixed historical date, guaranteed to differ from whatever day the
+    // suite actually runs on.
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date())
+    expect(today).not.toBe('2019-03-15')
+
+    await recordCheckIn(new Date('2019-03-15T12:00:00.000Z'))
+
+    expect(await countCheckInsOnLocalDate('2019-03-15', 'UTC')).toBe(1)
+    expect(await countCheckInsOnLocalDate(today, 'UTC')).toBe(0)
+  })
 })

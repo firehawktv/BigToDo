@@ -90,7 +90,7 @@ export async function runCheckInSweep(
       return { sent: false }
     }
 
-    await recordCheckIn()
+    await recordCheckIn(now)
     options.logger?.info({ sentToday: sentToday + 1 }, 'check-in sent')
     return { sent: true }
   } catch (error) {
