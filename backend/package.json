@@ -19,6 +19,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
     "@fastify/type-provider-typebox": "^5.2.0",
     "@sinclair/typebox": "^0.34.52",
     "fastify": "^5.11.3",
