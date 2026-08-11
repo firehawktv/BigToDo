@@ -21,6 +21,38 @@ and is used server-side only — it never reaches the client. Optional
 `PARSE_MODEL`, `BREAKDOWN_MODEL`, and `AI_TIMEOUT_MS` overrides are documented
 in `.env.example`. `npm run migrate` and `npm test` do not require it.
 
+### Web Push setup
+
+Generate a VAPID keypair once per deployment:
+
+```bash
+npm run vapid:generate
+```
+
+This prints `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` to put in `.env`.
+**Regenerating the keypair invalidates every existing push subscription** —
+every device would need to re-subscribe, since the browser ties a
+subscription to the public key it was created with.
+
+Required, alongside the keypair:
+
+- `VAPID_SUBJECT` — a `mailto:` or `https:` URL identifying the sender, per
+  the VAPID spec.
+- `APP_URL` — the PWA's public URL; where a tapped notification opens.
+
+Optional (documented in `.env.example`, with the server's defaults):
+
+- `DEADLINE_LEAD_MINUTES` (default 60) — how far ahead of a task's `dueAt`
+  the deadline alert fires.
+- `SCHEDULER_TICK_MINUTES` (default 15) — how often the in-process scheduler
+  runs; must divide 60 evenly (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30).
+
+Like `ANTHROPIC_API_KEY`, all of the above are required to start the server
+(`npm run dev`/`npm start`) but not for `npm run migrate` or `npm test`.
+`npm run migrate` applies `003_scheduler_push.sql` without needing any VAPID
+variables set — the config that requires them is only read once the server
+actually starts.
+
 `npm run dev`, `npm start`, `npm run migrate`, and `npm test` all load `.env`
 via Node's `--env-file-if-exists=.env` — that file is what supplies
 `DATABASE_URL`, `API_TOKEN`, and (for tests) `TEST_DATABASE_URL`. There is no
@@ -58,6 +90,12 @@ Missing or wrong tokens return `401 {"error":"Unauthorized"}`.
 | POST | `/tasks/:id/breakdown` | — | 200 `{subtasks}` / 404 / 503 |
 | POST | `/tasks/:id/subtasks` | `{subtasks}` | 201 `{tasks}` / 404 |
 | GET | `/tasks/available?minutes=N` | — | 200 `{minutes, tasks}` |
+| GET | `/push/vapid-public-key` | — | 200 `{publicKey}` |
+| POST | `/push/subscriptions` | browser `PushSubscription` JSON | 201 `{id, endpoint, createdAt}` |
+| DELETE | `/push/subscriptions` | `{endpoint}` | 204 / 404 |
+| POST | `/push/test` | — | 200 `{sent, pruned, failed}` |
+| GET | `/check-in-settings` | — | 200 `CheckInSettings` |
+| PATCH | `/check-in-settings` | partial `CheckInSettings` | 200 `CheckInSettings` / 400 |
 
 `GET /tasks` query parameters: `status` (`open`/`done`), `parentTaskId` (a uuid,
 or `none` for top-level only), `captureBatchId`, `maxEstimatedMinutes`,
@@ -165,6 +203,96 @@ reads as a vague project rather than a single action (e.g. "redesign the
 website"), and is cleared automatically once subtasks are saved for that
 task. It is otherwise a plain field the client can also set directly via
 `PATCH /tasks/:id`.
+
+## Push notifications
+
+`POST /push/subscriptions` accepts the browser's `PushSubscription.toJSON()`
+shape verbatim:
+
+```json
+{
+  "endpoint": "https://...",
+  "keys": { "p256dh": "...", "auth": "..." }
+}
+```
+
+It upserts on `endpoint`, so a device that resubscribes (e.g. after rotating
+keys) does not create a duplicate row. The response deliberately omits
+`p256dh` and `auth`:
+
+```json
+{ "id": "uuid", "endpoint": "string", "createdAt": "ISO-8601" }
+```
+
+They are the device's own encryption material — the client already has them,
+and there is no reason to echo them back over the wire.
+
+`DELETE /push/subscriptions` takes `{endpoint}` and 404s if that endpoint
+isn't registered.
+
+`POST /push/test` sends a real notification to every registered subscription
+and returns `{sent, pruned, failed}`. It exists because verifying push works
+end to end — especially on iOS, where PWA push has extra install and
+permission requirements — is fiddly enough to be worth a dedicated
+just-try-it endpoint rather than only finding out via a deadline or check-in.
+
+### Check-in settings
+
+`GET /check-in-settings` returns, and `PATCH /check-in-settings` partially
+updates:
+
+```json
+{
+  "enabled": true,
+  "activeFrom": "09:00",
+  "activeTo": "18:00",
+  "checkInsPerDay": 3,
+  "timezone": "UTC",
+  "updatedAt": "ISO-8601"
+}
+```
+
+`activeFrom`/`activeTo` are local wall-clock `HH:MM` in `timezone` (an IANA
+zone name, e.g. `Europe/London`). `checkInsPerDay` is 0–12. `PATCH` accepts
+any non-empty subset of `enabled`, `activeFrom`, `activeTo`, `checkInsPerDay`,
+`timezone`; an empty body, an unknown timezone, or a window where
+`activeFrom` is not before `activeTo` all return 400. Since either end of the
+window can be patched alone, the check is against the *merged* result — a
+request that only sends `activeTo` is still validated against the currently
+stored `activeFrom`.
+
+## Scheduler
+
+The server runs an in-process `node-cron` job on a `*/SCHEDULER_TICK_MINUTES`
+schedule. It is started from `server.ts` after the HTTP server is listening,
+**not** from `buildApp()` — the test suite builds the app via
+`buildTestApp()` and never starts the cron, so tests stay deterministic and
+never send a real push. Because the scheduler is in-process state, the
+service must not be scaled beyond one instance, or every alert would fire
+once per instance.
+
+Each tick runs two sweeps:
+
+- **Deadline alerts.** Open tasks whose `dueAt` falls within
+  `DEADLINE_LEAD_MINUTES` (including tasks already overdue, e.g. ones that
+  were due while the service was down) get one push each, and are stamped
+  with `alerted_at` so the same task never alerts twice — idempotent even
+  across restarts, since the stamp is in the database rather than in memory.
+- **Check-ins.** Randomized across the configured active window, rather than
+  scheduled at fixed times: each tick computes the probability that *this*
+  tick should be one of the day's remaining check-ins from how many are still
+  owed and how many ticks remain in the window, so the arrival times are
+  unpredictable but the count still converges on the target by the end of the
+  window. `checkInsPerDay` is therefore a target, not a guarantee — a
+  short-lived active window or infrequent ticks can under-deliver it. The
+  window is interpreted in `timezone` and does not support wrapping past
+  midnight (a migration-level `CHECK` enforces `activeFrom < activeTo`); a
+  night-shift schedule isn't supported in v1.
+
+Both sweeps send through the same delivery path: a subscription that the push
+service reports as gone (HTTP 404/410) is pruned from the database
+automatically; any other failure is just logged and retried on the next tick
+without consuming that day's check-in quota or marking a task alerted.
 
 ## Migrations
 

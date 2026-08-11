@@ -1,5 +1,6 @@
 import { buildApp } from './app.js'
 import { config } from './config.js'
+import { startScheduler, stopScheduler } from './scheduler/index.js'
 
 const app = await buildApp()
 
@@ -10,8 +11,11 @@ try {
   process.exit(1)
 }
 
+startScheduler(app.log)
+
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
+    stopScheduler()
     app.close().then(
       () => process.exit(0),
       (error) => {

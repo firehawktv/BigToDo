@@ -30,3 +30,20 @@ vi.mock('@anthropic-ai/sdk', () => {
   }
   return { default: AnthropicMock }
 })
+
+// Same insurance, for web-push. src/push/webPush.ts calls setVapidDetails at
+// import time, and it validates the key is a real 65-byte EC point — the
+// placeholder VAPID_PUBLIC_KEY above is not, so any test that pulls in the
+// real module (e.g. by registering the app's push routes, which import
+// push/send.js) would crash before the test even runs, not just when a push
+// is sent. Tests that care about send behaviour already mock
+// src/push/webPush.js or src/push/send.js directly, which takes precedence
+// over this for that file.
+vi.mock('web-push', () => ({
+  default: {
+    setVapidDetails: () => {},
+    sendNotification: () => {
+      throw new Error('a test attempted a real push send — mock src/push/send.js or webPush.js')
+    },
+  },
+}))

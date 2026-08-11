@@ -6,6 +6,8 @@ import { taskRoutes } from './routes/tasks.js'
 import { captureBatchRoutes } from './routes/captureBatches.js'
 import { captureRoutes } from './routes/capture.js'
 import { breakdownRoutes } from './routes/breakdown.js'
+import { pushRoutes } from './routes/push.js'
+import { checkInSettingsRoutes } from './routes/checkInSettings.js'
 import authPlugin from './plugins/auth.js'
 
 export interface BuildAppOptions {
@@ -50,6 +52,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(taskRoutes)
   await app.register(captureBatchRoutes)
   await app.register(breakdownRoutes)
+  await app.register(pushRoutes)
+  await app.register(checkInSettingsRoutes)
 
   return app
 }
