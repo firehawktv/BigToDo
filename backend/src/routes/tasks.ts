@@ -28,13 +28,20 @@ function isForeignKeyViolation(error: unknown): boolean {
 }
 
 /**
- * The repository's `Task` types timestamps as `Date`; `TaskSchema` types them as
- * ISO strings, which is what fast-json-stringify actually serializes them to on
- * the wire. This cast only reconciles the static types — it has no runtime effect.
+ * Converts a repository `Task` (timestamps as `Date | null` / `Date`) into the
+ * wire shape `TaskSchema` declares (timestamps as ISO strings). This is a real
+ * conversion, not a cast — it is what actually produces the ISO strings the
+ * response carries, independent of any serializer behavior.
  */
 type TaskResponse = Static<typeof TaskSchema>
 function toResponse(task: Task): TaskResponse {
-  return task as unknown as TaskResponse
+  return {
+    ...task,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    alertedAt: task.alertedAt?.toISOString() ?? null,
+    completedAt: task.completedAt?.toISOString() ?? null,
+    createdAt: task.createdAt.toISOString(),
+  }
 }
 
 export async function taskRoutes(app: FastifyInstance): Promise<void> {

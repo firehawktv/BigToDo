@@ -185,6 +185,29 @@ describe('/tasks routes', () => {
     expect(response.json().completedAt).not.toBeNull()
   })
 
+  it('serializes every timestamp field as a real ISO string, not just via the wire serializer', async () => {
+    const task = await createTaskViaApi({
+      title: 'Has real timestamps',
+      dueAt: '2026-09-01T10:00:00.000Z',
+    })
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/tasks/${task.id}`,
+      headers: authHeaders(),
+      payload: { status: 'done' },
+    })
+    const body = response.json()
+
+    // dueAt and completedAt are both non-null here, so this pins toResponse()'s
+    // own conversion of Date -> string, not merely what the serializer would do.
+    expect(typeof body.dueAt).toBe('string')
+    expect(typeof body.completedAt).toBe('string')
+    expect(typeof body.createdAt).toBe('string')
+    expect(body.dueAt).toBe('2026-09-01T10:00:00.000Z')
+    expect(new Date(body.completedAt).toString()).not.toBe('Invalid Date')
+  })
+
   it('rejects an empty patch body with 400', async () => {
     const task = await createTaskViaApi({ title: 'Do the thing' })
 
