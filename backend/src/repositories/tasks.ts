@@ -180,6 +180,29 @@ export async function listTasks(filter: ListTasksFilter = {}): Promise<Task[]> {
   return rows.map(mapRow)
 }
 
+/**
+ * Open tasks whose deadline falls inside the lead window and that have not been
+ * alerted yet. Overdue tasks are included: a deadline that passed while the
+ * service was down still deserves exactly one alert. `alerted_at` is what makes
+ * this idempotent, so the sweep can run as often as it likes.
+ */
+export async function listTasksDueForAlert(
+  leadMinutes: number,
+  limit: number,
+): Promise<Task[]> {
+  const { rows } = await pool.query<TaskRow>(
+    `SELECT ${COLUMNS} FROM tasks
+     WHERE status = 'open'
+       AND due_at IS NOT NULL
+       AND alerted_at IS NULL
+       AND due_at <= now() + make_interval(mins => $1)
+     ORDER BY due_at ASC
+     LIMIT $2`,
+    [leadMinutes, limit],
+  )
+  return rows.map(mapRow)
+}
+
 export async function getTask(id: string): Promise<Task | null> {
   const { rows } = await pool.query<TaskRow>(`SELECT ${COLUMNS} FROM tasks WHERE id = $1`, [id])
   return rows[0] ? mapRow(rows[0]) : null
@@ -214,8 +237,12 @@ export async function updateTask(id: string, patch: UpdateTaskInput): Promise<Ta
   const values: unknown[] = []
 
   for (const [key, column] of Object.entries(UPDATABLE_COLUMNS)) {
-    if (!(key in patch)) continue
-    values.push(patch[key as keyof UpdateTaskInput] ?? null)
+    // An explicit `null` clears the column; an explicit `undefined` means
+    // "leave it alone". Testing the value rather than key presence is what
+    // keeps those apart — `key in patch` is true for both.
+    const value = patch[key as keyof UpdateTaskInput]
+    if (value === undefined) continue
+    values.push(value)
     assignments.push(`${column} = $${values.length}`)
   }
 
