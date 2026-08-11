@@ -3,6 +3,7 @@ import { closePool } from '../../src/db/pool.js'
 import { setupTestDatabase, truncateAll } from '../helpers/db.js'
 import {
   createTask,
+  createTasks,
   deleteTask,
   getTask,
   listTasks,
@@ -180,5 +181,39 @@ describe('tasks repository', () => {
     await deleteTask(parent.id)
 
     expect(await getTask(child.id)).toBeNull()
+  })
+
+  it('creates several tasks in one call and persists all of them', async () => {
+    const created = await createTasks([
+      { title: 'Batch one', priority: 'high' },
+      { title: 'Batch two', notes: 'from parsing', estimatedMinutes: 15 },
+    ])
+
+    expect(created).toHaveLength(2)
+    expect(created.map((task) => task.title)).toEqual(['Batch one', 'Batch two'])
+    expect(created[0]?.priority).toBe('high')
+    expect(created[1]?.notes).toBe('from parsing')
+    expect(created[1]?.estimatedMinutes).toBe(15)
+
+    const persisted = await listTasks()
+    expect(persisted.map((task) => task.title).sort()).toEqual(['Batch one', 'Batch two'])
+  })
+
+  it('returns an empty array and inserts nothing for an empty batch', async () => {
+    const created = await createTasks([])
+
+    expect(created).toEqual([])
+    expect(await listTasks()).toEqual([])
+  })
+
+  it('rolls back the whole batch when one row is invalid', async () => {
+    await expect(
+      createTasks([
+        { title: 'Valid row' },
+        { title: 'Bad row', parentTaskId: '00000000-0000-0000-0000-000000000000' },
+      ]),
+    ).rejects.toThrow()
+
+    expect(await listTasks()).toEqual([])
   })
 })

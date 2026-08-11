@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js'
+import type { Pool, PoolClient } from 'pg'
 import type { TaskPriorityValue, TaskSourceValue, TaskStatusValue } from '../schemas/task.js'
 
 export interface Task {
@@ -67,8 +68,9 @@ export interface CreateTaskInput {
   source?: TaskSourceValue
 }
 
-export async function createTask(input: CreateTaskInput): Promise<Task> {
-  const { rows } = await pool.query<TaskRow>(
+/** Inserts one task row via whichever connection (pool or an in-transaction client) is given. */
+async function insertOne(queryable: Pool | PoolClient, input: CreateTaskInput): Promise<Task> {
+  const { rows } = await queryable.query<TaskRow>(
     `INSERT INTO tasks
        (title, notes, priority, due_at, estimated_minutes,
         parent_task_id, capture_batch_id, source)
@@ -90,6 +92,10 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   return mapRow(rows[0]!)
 }
 
+export async function createTask(input: CreateTaskInput): Promise<Task> {
+  return insertOne(pool, input)
+}
+
 /**
  * Creates several tasks in one transaction — used by the AI parsing flow, where
  * a batch of parsed tasks should land all-or-nothing.
@@ -102,26 +108,7 @@ export async function createTasks(inputs: CreateTaskInput[]): Promise<Task[]> {
     await client.query('BEGIN')
     const created: Task[] = []
     for (const input of inputs) {
-      const { rows } = await client.query<TaskRow>(
-        `INSERT INTO tasks
-           (title, notes, priority, due_at, estimated_minutes,
-            parent_task_id, capture_batch_id, source)
-         VALUES
-           ($1, $2, COALESCE($3::task_priority, 'medium'), $4, $5,
-            $6, $7, COALESCE($8::task_source, 'manual'))
-         RETURNING ${COLUMNS}`,
-        [
-          input.title,
-          input.notes ?? null,
-          input.priority ?? null,
-          input.dueAt ?? null,
-          input.estimatedMinutes ?? null,
-          input.parentTaskId ?? null,
-          input.captureBatchId ?? null,
-          input.source ?? null,
-        ],
-      )
-      created.push(mapRow(rows[0]!))
+      created.push(await insertOne(client, input))
     }
     await client.query('COMMIT')
     return created
