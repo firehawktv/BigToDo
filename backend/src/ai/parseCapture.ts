@@ -1,7 +1,7 @@
 import { anthropic } from './anthropic.js'
 import { aiConfig } from './config.js'
 import { AiUnavailableError } from './errors.js'
-import { readStructuredJson } from './response.js'
+import { readStructuredJson, type ClaudeResponseLike } from './response.js'
 
 export interface ParsedTaskDraft {
   title: string
@@ -101,16 +101,14 @@ function toDraft(raw: RawDraft): ParsedTaskDraft | null {
 }
 
 export async function parseCapture(rawText: string, now: Date = new Date()): Promise<ParsedTaskDraft[]> {
-  let response: { stop_reason?: string; content?: unknown[] }
+  let response: ClaudeResponseLike
 
   try {
-    // The request itself (including `output_config`) type-checks against the
-    // installed SDK's types with no cast needed. The cast below is only for
-    // the *result*: the real `Message` type has `stop_reason: StopReason |
-    // null`, which isn't assignable to our narrowed `string | undefined` —
-    // we only read a couple of fields off the response, so `readStructuredJson`
-    // works against that narrow shape rather than the SDK's full type.
-    response = (await anthropic.messages.create({
+    // The request (including `output_config`) type-checks against the
+    // installed SDK's types with no cast needed, and the SDK's real `Message`
+    // result is structurally assignable to `ClaudeResponseLike` now that its
+    // `stop_reason` field allows `null` too — no cast needed here either.
+    response = await anthropic.messages.create({
       model: aiConfig.parseModel,
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
@@ -121,7 +119,7 @@ export async function parseCapture(rawText: string, now: Date = new Date()): Pro
           content: `Current date and time: ${now.toISOString()}\n\nBrain-dump:\n${rawText}`,
         },
       ],
-    })) as never
+    })
   } catch (error) {
     throw new AiUnavailableError('Claude request failed', 'request_failed', { cause: error })
   }

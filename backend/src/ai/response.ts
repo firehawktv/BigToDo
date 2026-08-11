@@ -2,7 +2,7 @@ import { AiUnavailableError } from './errors.js'
 
 /** The subset of a Messages API response this module reads. */
 export interface ClaudeResponseLike {
-  stop_reason?: string
+  stop_reason?: string | null
   content?: unknown[]
 }
 
