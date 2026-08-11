@@ -13,6 +13,7 @@ export interface Task {
   parentTaskId: string | null
   captureBatchId: string | null
   source: TaskSourceValue
+  suggestBreakdown: boolean
   alertedAt: Date | null
   createdAt: Date
   completedAt: Date | null
@@ -29,6 +30,7 @@ interface TaskRow {
   parent_task_id: string | null
   capture_batch_id: string | null
   source: TaskSourceValue
+  suggest_breakdown: boolean
   alerted_at: Date | null
   created_at: Date
   completed_at: Date | null
@@ -36,7 +38,8 @@ interface TaskRow {
 
 const COLUMNS = `
   id, title, notes, status, priority, due_at, estimated_minutes,
-  parent_task_id, capture_batch_id, source, alerted_at, created_at, completed_at
+  parent_task_id, capture_batch_id, source, suggest_breakdown, alerted_at,
+  created_at, completed_at
 `
 
 function mapRow(row: TaskRow): Task {
@@ -51,6 +54,7 @@ function mapRow(row: TaskRow): Task {
     parentTaskId: row.parent_task_id,
     captureBatchId: row.capture_batch_id,
     source: row.source,
+    suggestBreakdown: row.suggest_breakdown,
     alertedAt: row.alerted_at,
     createdAt: row.created_at,
     completedAt: row.completed_at,
@@ -66,6 +70,7 @@ export interface CreateTaskInput {
   parentTaskId?: string | null
   captureBatchId?: string | null
   source?: TaskSourceValue
+  suggestBreakdown?: boolean
 }
 
 /** Inserts one task row via whichever connection (pool or an in-transaction client) is given. */
@@ -73,10 +78,10 @@ async function insertOne(queryable: Pool | PoolClient, input: CreateTaskInput): 
   const { rows } = await queryable.query<TaskRow>(
     `INSERT INTO tasks
        (title, notes, priority, due_at, estimated_minutes,
-        parent_task_id, capture_batch_id, source)
+        parent_task_id, capture_batch_id, source, suggest_breakdown)
      VALUES
        ($1, $2, COALESCE($3::task_priority, 'medium'), $4, $5,
-        $6, $7, COALESCE($8::task_source, 'manual'))
+        $6, $7, COALESCE($8::task_source, 'manual'), COALESCE($9, false))
      RETURNING ${COLUMNS}`,
     [
       input.title,
@@ -87,6 +92,7 @@ async function insertOne(queryable: Pool | PoolClient, input: CreateTaskInput): 
       input.parentTaskId ?? null,
       input.captureBatchId ?? null,
       input.source ?? null,
+      input.suggestBreakdown ?? null,
     ],
   )
   return mapRow(rows[0]!)
@@ -187,6 +193,7 @@ export interface UpdateTaskInput {
   dueAt?: Date | string | null
   estimatedMinutes?: number | null
   parentTaskId?: string | null
+  suggestBreakdown?: boolean
   alertedAt?: Date | null
 }
 
@@ -198,6 +205,7 @@ const UPDATABLE_COLUMNS: Record<keyof UpdateTaskInput, string> = {
   dueAt: 'due_at',
   estimatedMinutes: 'estimated_minutes',
   parentTaskId: 'parent_task_id',
+  suggestBreakdown: 'suggest_breakdown',
   alertedAt: 'alerted_at',
 }
 

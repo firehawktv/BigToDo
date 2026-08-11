@@ -4,6 +4,12 @@ import { TaskSchema } from './task.js'
 export const CaptureBatchSchema = Type.Object({
   id: Type.String({ format: 'uuid' }),
   rawText: Type.String(),
+  parseStatus: Type.Union([
+    Type.Literal('pending'),
+    Type.Literal('parsed'),
+    Type.Literal('failed'),
+  ]),
+  parseError: Type.Union([Type.String(), Type.Null()]),
   createdAt: Type.String({ format: 'date-time' }),
 })
 

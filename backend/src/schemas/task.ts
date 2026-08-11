@@ -34,6 +34,7 @@ export const TaskSchema = Type.Object({
   parentTaskId: Nullable(UuidSchema),
   captureBatchId: Nullable(UuidSchema),
   source: TaskSourceSchema,
+  suggestBreakdown: Type.Boolean(),
   alertedAt: Nullable(DateTimeSchema),
   createdAt: DateTimeSchema,
   completedAt: Nullable(DateTimeSchema),
@@ -66,6 +67,7 @@ export const UpdateTaskSchema = Type.Object(
       Type.Union([Type.Integer({ minimum: 1, maximum: 100_000 }), Type.Null()]),
     ),
     parentTaskId: Type.Optional(Nullable(UuidSchema)),
+    suggestBreakdown: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false, minProperties: 1 },
 )
