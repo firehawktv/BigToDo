@@ -2,10 +2,27 @@
 
 **Not run by Task 4.** This is the artifact Task 5 presents to the human
 for sign-off before executing anything against the live, shared production
-VPS (`root@31.97.10.113`, hostname `srv827051.hstgr.cloud`, SSH key
-`~/.ssh/warp_hostinger`). Every command below was derived from Task 4's
-read-only investigation of that same box (see "Investigation basis"), not
-guessed.
+VPS. Every command below was derived from Task 4's read-only investigation
+of that same box (see "Investigation basis"), not guessed.
+
+**Execution model:** every command in this file is written to run **from a
+local workstation** — the machine with your git checkout and the
+`frontend/dist/` build output (built in `docs/DEPLOY.md`'s Step 4, which
+must run *before* this file's numbered sequence) — SSHing/SCPing into the
+VPS as needed. Do **not** run these while already SSH'd into the box; the
+`rsync`/`scp` sources here are locally-relative paths and several commands
+open their own SSH connections.
+
+Commands below reference an SSH alias, `todo-vps`, rather than a hardcoded
+hostname/IP/key path. Define it once in your own local `~/.ssh/config`
+(not committed anywhere):
+
+```
+Host todo-vps
+    HostName <the VPS's real IP or hostname>
+    User root
+    IdentityFile ~/.ssh/<your real private key file>
+```
 
 ## Investigation basis (read-only, already run — see `task-4-report.md`)
 
@@ -54,7 +71,7 @@ verify it before moving on.
 
 1. **Re-confirm port 3002 is still free, immediately before creating anything that will bind it** (see "Investigation basis" above for why this needs a fresh check, not just Task 1/4's earlier reads):
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "ss -ltnp | grep ':3002\b' || echo '3002 is free'"
+   ssh todo-vps "ss -ltnp | grep ':3002\b' || echo '3002 is free'"
    ```
    If this prints anything other than "3002 is free", **stop** — do not proceed until the human has decided on a different host port (and Task 2's `docker-compose.prod.yml` / this file's proxy target are updated to match).
 
@@ -64,7 +81,7 @@ verify it before moving on.
    user). Generate a strong random password first rather than typing one
    inline:
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
+   ssh todo-vps \
      "TODO_SITE_PW=\$(openssl rand -base64 24) && \
       clpctl site:add:static --domainName=todo.cooney.fun --siteUser=todo --siteUserPassword=\"\$TODO_SITE_PW\" && \
       echo \"todo site user password: \$TODO_SITE_PW\""
@@ -80,14 +97,13 @@ verify it before moving on.
 
 3. **Verify the generated file exists and looks like the `gifts.cooney.fun` precedent** before editing it:
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "cat /etc/nginx/sites-enabled/todo.cooney.fun.conf"
+   ssh todo-vps "cat /etc/nginx/sites-enabled/todo.cooney.fun.conf"
    ```
 
 4. **Copy this app's frontend build to the new site's htdocs root** (adjust the local build path if the frontend's `dist/` output has moved by Task 5's time):
    ```bash
    rsync -avz --delete \
-     -e "ssh -i ~/.ssh/warp_hostinger" \
-     frontend/dist/ root@31.97.10.113:/home/todo/htdocs/todo.cooney.fun/
+     frontend/dist/ todo-vps:/home/todo/htdocs/todo.cooney.fun/
    ```
    (CloudPanel's static-site root is the domain's htdocs directory itself,
    per `gifts.cooney.fun.conf`'s `root /home/cooney-gifts/htdocs/gifts.cooney.fun/giftghost/dist;`
@@ -102,7 +118,7 @@ verify it before moving on.
    in step 2, is expected to own everything under its own htdocs
    directory). Fix it before moving on:
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
+   ssh todo-vps \
      "chown -R todo:todo /home/todo/htdocs/todo.cooney.fun/"
    ```
 
@@ -119,7 +135,7 @@ verify it before moving on.
    ```bash
    # Pull the generated file down locally first, to edit against the real
    # CloudPanel scaffold rather than guessing at it:
-   scp -i ~/.ssh/warp_hostinger root@31.97.10.113:/etc/nginx/sites-enabled/todo.cooney.fun.conf /tmp/todo.cooney.fun.conf
+   scp todo-vps:/etc/nginx/sites-enabled/todo.cooney.fun.conf /tmp/todo.cooney.fun.conf
 
    # Manually edit /tmp/todo.cooney.fun.conf: remove its default
    # `location / { try_files $uri $uri/ /index.html; }` block, then paste
@@ -127,7 +143,7 @@ verify it before moving on.
    # in its place, before the server block's closing `}`.
 
    # Push the edited file back up:
-   scp -i ~/.ssh/warp_hostinger /tmp/todo.cooney.fun.conf root@31.97.10.113:/etc/nginx/sites-enabled/todo.cooney.fun.conf
+   scp /tmp/todo.cooney.fun.conf todo-vps:/etc/nginx/sites-enabled/todo.cooney.fun.conf
    ```
 
 6. **Syntax-check the spliced file on the live box** (this is the real
@@ -135,7 +151,7 @@ verify it before moving on.
    blocks parse in isolation, not that they're valid once merged into
    CloudPanel's actual generated file):
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "nginx -t"
+   ssh todo-vps "nginx -t"
    ```
    If this fails, fix `/tmp/todo.cooney.fun.conf` locally, re-run step 5's
    `scp` push, and re-run this check — do not reload nginx with a config
@@ -143,14 +159,14 @@ verify it before moving on.
 
 7. **Reload nginx** to pick up the new site (only after step 6 passes):
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "systemctl reload nginx"
+   ssh todo-vps "systemctl reload nginx"
    ```
 
 8. **Issue the Let's Encrypt certificate** via CloudPanel's own
    integration (per Task 1's finding that certbot isn't installed on this
    box — do not attempt `certbot --nginx`):
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
+   ssh todo-vps \
      "clpctl lets-encrypt:install:certificate --domainName=todo.cooney.fun"
    ```
    This both obtains the cert and updates
@@ -164,16 +180,22 @@ verify it before moving on.
 
    **Prerequisite this step assumes but does not create:** `todo.cooney.fun`
    must already resolve (via DNS A/AAAA record at whatever registrar/DNS
-   host manages `cooney.fun`) to `31.97.10.113` before Let's Encrypt's
+   host manages `cooney.fun`) to the VPS's IP before Let's Encrypt's
    HTTP-01 challenge can succeed — Task 1 confirmed the subdomain does
    not resolve yet. That DNS record is outside this plan's automatable
    steps; confirm it's been created (and has propagated —
-   `dig +short todo.cooney.fun` should return `31.97.10.113`) before
+   `dig +short todo.cooney.fun` should return the VPS's IP) before
    running this step, or it will fail.
 
-9. **Re-verify the spliced config's syntax and the live site end-to-end**:
+9. **Re-verify the spliced config's syntax and the live site end-to-end.**
+   The backend container is already running by this point — it was started
+   in `docs/DEPLOY.md`'s Step 3, from `/srv/todo-app/backend`, *before*
+   this numbered sequence began (there is no separate backend-startup step
+   in this file; starting the backend is `docs/DEPLOY.md` Step 3's job,
+   not this file's) — so the `/api/health` check below exercises the full
+   proxy path immediately, with nothing left to start first:
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "nginx -t"
+   ssh todo-vps "nginx -t"
    curl -sI https://todo.cooney.fun/                       # expect 200, index.html
    curl -sI https://todo.cooney.fun/assets/                # expect Cache-Control: public, immutable (on an actual asset file, once deployed)
    curl -sI https://todo.cooney.fun/sw.js                  # expect Cache-Control: no-cache
@@ -181,27 +203,15 @@ verify it before moving on.
    curl -si https://todo.cooney.fun/api/health              # expect 200 {"status":"ok"} proxied from the backend on 127.0.0.1:3002
    ```
 
-10. **Start (or confirm running) the backend container** the nginx
-    `/api/` location above proxies to, using Task 2's
-    `backend/docker-compose.prod.yml` (host port `3002` → container
-    port `3000`, per Task 2's report):
-    ```bash
-    ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
-      "cd /home/todo/backend && docker compose -f docker-compose.prod.yml up -d"
-    ```
-    (This assumes the backend's source/build context and its real `.env`
-    — with `API_TOKEN`, `ANTHROPIC_API_KEY`, VAPID keys, etc. — have
-    already been deployed to `/home/todo/backend` on the box by whichever
-    step in this plan handles that; this file only covers the nginx/site
-    side. Confirm that path before running this command, adjusting it if
-    the backend actually lives elsewhere on the box.)
-
 ## What this sequence deliberately does not cover
 
 - Provisioning `todo.cooney.fun`'s DNS record — assumed done externally
   before step 8.
-- Deploying the backend's actual code/`.env` to the VPS — step 10 assumes
-  it's already there; that's this plan's earlier tasks' job, not Task 4's.
+- Starting the backend container — that's `docs/DEPLOY.md`'s Step 3's job,
+  already done by the time this sequence runs (this file only covers the
+  nginx/CloudPanel site side; the backend's real repo checkout and `.env`
+  live at `/srv/todo-app/backend` on the VPS, not under `/home/todo` —
+  `/home/todo` is the frontend's static document root only).
 - Any rollback/cutover plan if `nginx -t` in step 6 or step 9 fails after
   step 7's reload — if that happens, stop and get human input rather than
   improvising further live changes, per the plan's Global Constraints for
