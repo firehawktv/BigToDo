@@ -96,6 +96,16 @@ verify it before moving on.
    straight into the domain's htdocs root to keep the `root` directive
    CloudPanel already generated in step 2 unchanged.)
 
+   **Fix ownership immediately after the rsync.** The command above runs
+   as `root` over SSH, so the synced files land root-owned — that breaks
+   CloudPanel's site-user ownership model (the `todo` site user, created
+   in step 2, is expected to own everything under its own htdocs
+   directory). Fix it before moving on:
+   ```bash
+   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
+     "chown -R todo:todo /home/todo/htdocs/todo.cooney.fun/"
+   ```
+
 5. **Splice `deploy/nginx/todo.cooney.fun.locations.conf`'s contents into
    the generated file**, replacing the default `location /` block
    `site:add:static` created with the custom location blocks (the
