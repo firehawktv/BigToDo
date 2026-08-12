@@ -13,10 +13,10 @@
 - **This plan builds on all four prior plans**, all merged to the `backend-foundation` branch and pushed: backend foundation, AI capture & breakdown, scheduler & push, frontend PWA. `backend/README.md` and `frontend/README.md` are the ground truth for what each app needs at runtime — Task 1 re-verifies the specific claims this plan depends on (required env vars, exact `npm run migrate`/`build`/`start` commands, the frontend's `/api` proxy assumption) against the real repo before writing infrastructure config around them.
 - **Domain:** `todo.cooney.fun`. Every config file in this plan uses this literal value — no placeholder domains.
 - **The VPS already runs other services behind an existing nginx instance** (confirmed by the user, not assumed) — this plan adds one new nginx server block and one new certbot certificate; it must not touch, restart in a way that drops connections for, or reconfigure any existing site's config. `nginx -t` (config syntax check) before every reload is mandatory, not optional, because a syntax error in this app's block would take down every other site nginx serves.
-- **The backend container binds to `127.0.0.1` only** (`127.0.0.1:3001:3000` in Compose's `ports:` — see the confirmed-port note below), never `0.0.0.0` — nginx is the only process that should be able to reach it, and only nginx has a public-facing port. Postgres has no host port mapping at all (Docker-internal network only — see below). Directly exposing Postgres or the API to the public interface is a security defect this plan must not introduce.
+- **The backend container binds to `127.0.0.1` only** (`127.0.0.1:3002:3000` in Compose's `ports:` — see the confirmed-port note below), never `0.0.0.0` — nginx is the only process that should be able to reach it, and only nginx has a public-facing port. Postgres has no host port mapping at all (Docker-internal network only — see below). Directly exposing Postgres or the API to the public interface is a security defect this plan must not introduce.
 - **Confirmed by Task 1's live verification (superseding this plan's original default assumption): the VPS is CloudPanel-managed, not raw Debian nginx.** `sites-available/` is unused; active sites are flat files CloudPanel generates/manages directly in `sites-enabled/`. **certbot is not installed** — TLS on this box goes through CloudPanel's own Let's Encrypt integration (`clpctl site:install:certificate`), with certs stored at `/etc/nginx/ssl-certificates/<domain>.{crt,key}`, not certbot's standard layout. Tasks 4 and 5 use `clpctl`, matching every other site on this box, not a hand-authored `sites-available` symlink or a `certbot --nginx` invocation — both would fail outright or fight CloudPanel's own management.
 - **This app runs under its own dedicated CloudPanel site user, `todo`** (confirmed decision — matches the existing per-site convention on this box: `firehawk`, `cooney-gifts`, etc. each have their own user with `htdocs/` and `logs/` under their home directory).
-- **Confirmed by Task 1: host port 3000 is already taken** by an unrelated app (`firehawk.tv`'s Node server) on this shared VPS. The backend container publishes to **host port 3001** instead (container-internal port stays 3000; only the host-side mapping changes) — **re-verified free immediately before Task 2 writes the Compose file**, since other stacks get added to this box over time and a port confirmed free at planning time is not guaranteed free at execution time.
+- **Confirmed by Task 1: host port 3000 is already taken** by an unrelated app (`firehawk.tv`'s Node server) on this shared VPS. The backend container publishes to **host port 3002** instead (container-internal port stays 3000; only the host-side mapping changes) — **re-verified free immediately before Task 2 writes the Compose file**, since other stacks get added to this box over time and a port confirmed free at planning time is not guaranteed free at execution time.
 - **Postgres is not published to the host at all**, matching the established convention of every other Postgres container already running on this box (`plausible_events_db`, `immich_postgres`, `postgres-postgres-1` — none publish 5432 to the host). The backend reaches it via the Docker-internal network only (service name `db`), which is strictly safer than even a `127.0.0.1`-bound host port.
 - **Any command that changes the live VPS (creating the CloudPanel site, installing the cert, starting containers, editing nginx config) requires explicit human sign-off before execution** — this is a shared production box already serving other live sites, and the blast radius of a wrong move there extends beyond this app. Read-only verification (checking versions, existing config, `clpctl --help` output) does not require sign-off; anything that writes to the box does. Tasks 4, 5, and 6 are written to produce ready-to-run commands and stop for confirmation before applying them live, not to execute autonomously.
 - **No CI/CD.** Deploys are manual, SSH-driven, and documented as a runbook (`docs/DEPLOY.md`) a human runs step by step. This is a deliberate choice for a single-user personal app — automating deploys is more infrastructure than the problem justifies.
@@ -194,7 +194,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3002:3000"
     env_file:
       - .env
     environment:
@@ -204,7 +204,7 @@ volumes:
   todo_pgdata:
 ```
 
-The backend's `ports:` entry binds to `127.0.0.1` explicitly (per this plan's Global Constraints) — it is not reachable from outside the VPS itself; only nginx (running on the host, not in this Compose stack) can reach it. **Host port 3001, not 3000** — confirmed by Task 1's live check that 3000 is already bound by an unrelated app (`firehawk.tv`'s Node server) on this shared VPS; the container's own internal port stays `3000` (matching `PORT=3000` in `.env.production.example` below — that value is what Node binds to *inside* the container, unaffected by which host port maps to it), only the host-side mapping changes. **Re-verify 3001 is still free immediately before this step runs** (`ss -tlnp | grep 3001` on the VPS) since other stacks get added to this box over time. `DATABASE_URL` is composed here from `POSTGRES_PASSWORD` (read from `.env`) rather than requiring the user to duplicate the password inside a full connection string in two places — one source of truth for the password. `restart: unless-stopped` means a VPS reboot brings both services back automatically, but an explicit `docker compose stop` (used during deploys, see Task 6) stays stopped rather than being auto-restarted mid-deploy.
+The backend's `ports:` entry binds to `127.0.0.1` explicitly (per this plan's Global Constraints) — it is not reachable from outside the VPS itself; only nginx (running on the host, not in this Compose stack) can reach it. **Host port 3002, not 3000** — confirmed by Task 1's live check that 3000 is already bound by an unrelated app (`firehawk.tv`'s Node server) on this shared VPS; the container's own internal port stays `3000` (matching `PORT=3000` in `.env.production.example` below — that value is what Node binds to *inside* the container, unaffected by which host port maps to it), only the host-side mapping changes. **Re-verify 3002 is still free immediately before this step runs** (`ss -tlnp | grep 3002` on the VPS) since other stacks get added to this box over time. `DATABASE_URL` is composed here from `POSTGRES_PASSWORD` (read from `.env`) rather than requiring the user to duplicate the password inside a full connection string in two places — one source of truth for the password. `restart: unless-stopped` means a VPS reboot brings both services back automatically, but an explicit `docker compose stop` (used during deploys, see Task 6) stays stopped rather than being auto-restarted mid-deploy.
 
 - [ ] **Step 5: Write the production env template**
 
@@ -238,7 +238,7 @@ HOST=0.0.0.0
 LOG_LEVEL=info
 ```
 
-`HOST=0.0.0.0` here is correct and not a contradiction of the "bind to localhost only" constraint: `0.0.0.0` is the address the Node process binds to *inside its own container's network namespace* (where it must accept connections from Docker's internal bridge network, not just literal `localhost` inside the container) — Compose's `ports: "127.0.0.1:3001:3000"` mapping is the layer that actually restricts what the *host* can reach from outside. These are two different `localhost`s; conflating them is a common Docker networking mistake worth calling out explicitly in whichever report cites this step.
+`HOST=0.0.0.0` here is correct and not a contradiction of the "bind to localhost only" constraint: `0.0.0.0` is the address the Node process binds to *inside its own container's network namespace* (where it must accept connections from Docker's internal bridge network, not just literal `localhost` inside the container) — Compose's `ports: "127.0.0.1:3002:3000"` mapping is the layer that actually restricts what the *host* can reach from outside. These are two different `localhost`s; conflating them is a common Docker networking mistake worth calling out explicitly in whichever report cites this step.
 
 - [ ] **Step 6: Verify the image builds**
 
@@ -328,7 +328,7 @@ If Step 1 or 2 found a real problem (e.g., the service worker's MIME type genuin
 - Create: `deploy/vps-site-setup-commands.md` (the exact, human-reviewable command sequence Task 5 will ask sign-off to run)
 
 **Interfaces:**
-- Consumes: Task 1's confirmed findings (CloudPanel-managed, site user `todo`, backend on host port `3001`), `backend/README.md`'s endpoint table (no `/api` prefix on any backend route).
+- Consumes: Task 1's confirmed findings (CloudPanel-managed, site user `todo`, backend on host port `3002`), `backend/README.md`'s endpoint table (no `/api` prefix on any backend route).
 - Produces: a location-blocks file ready to be spliced into whatever CloudPanel generates, and a documented, reviewed command sequence for Task 5 to request sign-off on and run.
 
 - [ ] **Step 1: Read-only investigation of the CloudPanel precedent and `clpctl` options**
@@ -367,14 +367,14 @@ location = /manifest.webmanifest {
     add_header Cache-Control "no-cache";
 }
 
-# API traffic: reverse-proxy to the backend container on host port 3001
+# API traffic: reverse-proxy to the backend container on host port 3002
 # (confirmed by Task 1 — port 3000 is already taken by an unrelated app on
 # this shared VPS), stripping /api — matches exactly what the frontend's
 # dev-time Vite proxy does (see frontend/vite.config.ts's server.proxy
 # rewrite), so apiFetch's relative /api/... calls need zero code change
 # between environments.
 location /api/ {
-    proxy_pass http://127.0.0.1:3001/;
+    proxy_pass http://127.0.0.1:3002/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -391,7 +391,7 @@ location / {
 }
 ```
 
-The `proxy_pass http://127.0.0.1:3001/;` trailing slash is what makes nginx strip the `/api` prefix before forwarding — nginx's `proxy_pass` strips the matched `location` prefix (`/api/`) and replaces it with the trailing-slash target's path (empty), so a request to `/api/tasks` reaches the backend as `/tasks`, matching every route this plan's backend registers with no `/api` prefix of its own (confirmed against `backend/README.md`'s endpoint table).
+The `proxy_pass http://127.0.0.1:3002/;` trailing slash is what makes nginx strip the `/api` prefix before forwarding — nginx's `proxy_pass` strips the matched `location` prefix (`/api/`) and replaces it with the trailing-slash target's path (empty), so a request to `/api/tasks` reaches the backend as `/tasks`, matching every route this plan's backend registers with no `/api` prefix of its own (confirmed against `backend/README.md`'s endpoint table).
 
 - [ ] **Step 3: Validate the location blocks' syntax in isolation**
 
@@ -432,7 +432,7 @@ The steps a human runs once, on the VPS, to create the CloudPanel site (using Ta
 - Create: `docs/DEPLOY.md` (this task writes the "First-time VPS setup" section; Task 6 adds the "Routine deploy" section to the same file)
 
 **Interfaces:**
-- Consumes: `deploy/vps-site-setup-commands.md` and `deploy/nginx/todo.cooney.fun.locations.conf` (Task 4), Task 1's confirmed CloudPanel/`clpctl` findings, site user `todo`, backend host port `3001`.
+- Consumes: `deploy/vps-site-setup-commands.md` and `deploy/nginx/todo.cooney.fun.locations.conf` (Task 4), Task 1's confirmed CloudPanel/`clpctl` findings, site user `todo`, backend host port `3002`.
 - Produces: a runbook section a human can follow start to finish for first-time setup, explicit about which steps are safe to run solo and which are live-VPS writes needing a deliberate go/no-go check before proceeding to the next.
 
 - [ ] **Step 1: Write the "First-time VPS setup" section of `docs/DEPLOY.md`**
@@ -473,7 +473,7 @@ Edit `.env` and fill in every value — `API_TOKEN` and `POSTGRES_PASSWORD` via 
 
 ### 3. Build and start the backend stack, generate VAPID keys, run migrations
 
-**⚠️ LIVE VPS CHANGE** — starts new containers on the shared box; confirm host port 3001 is still free first (`ss -tlnp | grep 3001`), since Task 1/2 confirmed it free at planning time, not necessarily now.
+**⚠️ LIVE VPS CHANGE** — starts new containers on the shared box; confirm host port 3002 is still free first (`ss -tlnp | grep 3002`), since Task 1/2 confirmed it free at planning time, not necessarily now.
 
 ```bash
 cd /srv/todo-app/backend
@@ -494,10 +494,10 @@ Copy the printed public/private key pair into `.env`'s `VAPID_PUBLIC_KEY`/`VAPID
 docker compose -f docker-compose.prod.yml run --rm backend npm run migrate
 docker compose -f docker-compose.prod.yml up -d backend
 docker compose -f docker-compose.prod.yml ps
-curl http://127.0.0.1:3001/health
+curl http://127.0.0.1:3002/health
 ```
 
-Expected: `{"status":"ok"}` (confirm the exact shape against `backend/README.md`'s documented `/health` response before treating a mismatch as a failure — if it differs, that's real information, not this runbook being wrong). Note the port here is `3001` (the host-side mapping), not `3000` — see this plan's Global Constraints for why.
+Expected: `{"status":"ok"}` (confirm the exact shape against `backend/README.md`'s documented `/health` response before treating a mismatch as a failure — if it differs, that's real information, not this runbook being wrong). Note the port here is `3002` (the host-side mapping), not `3000` — see this plan's Global Constraints for why.
 
 ### 4. Create the CloudPanel site and site user
 
@@ -663,7 +663,7 @@ docker compose -f docker-compose.prod.yml build backend
 docker compose -f docker-compose.prod.yml stop backend
 docker compose -f docker-compose.prod.yml run --rm backend npm run migrate
 docker compose -f docker-compose.prod.yml up -d backend
-curl http://127.0.0.1:3001/health
+curl http://127.0.0.1:3002/health
 
 # Frontend: rebuild and resync
 cd ../frontend

@@ -36,15 +36,13 @@ guessed.
   is almost certainly how every existing site's cert (including
   `gifts.cooney.fun`'s, at `/etc/nginx/ssl-certificates/`) was obtained,
   per Task 1's finding that certbot isn't installed on this box at all.
-- `ss -ltnp` on the live box (read-only) — port `3001` is **not**
-  currently bound by anything (only `3000`, an unrelated `firehawk.tv`
-  node process, and a handful of docker-mapped ports are). This matches
-  Task 1/Task 2's chosen host port for this app's backend. However,
-  `gifts.cooney.fun.conf`'s own `/api/` location also proxies to
-  `127.0.0.1:3001` for a different backend — that backend appears to be
-  stopped, not decommissioned, so **step 8 below re-checks this
-  immediately before starting anything**, not relying on this task's
-  earlier read.
+- `ss -ltnp` on the live box (read-only) — the originally-planned port
+  `3001` was found to still be referenced by `gifts.cooney.fun.conf`'s own
+  `/api/` location, for a different (currently-stopped, not confirmed
+  decommissioned) backend, so this app moved to **`3002`** instead — not
+  bound by anything, and not referenced in any other site's nginx config
+  on this box. **Step 1 below re-checks this immediately before creating
+  anything**, not relying on this task's earlier read.
 - `ls /home/` — no `todo` (or similarly named) site user or home
   directory exists yet, confirming the site has not been created.
 
@@ -54,11 +52,11 @@ Run in order. Each command is idempotent to inspect before running (dry
 -run notes included where relevant) and every write step includes how to
 verify it before moving on.
 
-1. **Re-confirm port 3001 is still free, immediately before creating anything that will bind it** (see "Investigation basis" above for why this needs a fresh check, not just Task 1/4's earlier reads):
+1. **Re-confirm port 3002 is still free, immediately before creating anything that will bind it** (see "Investigation basis" above for why this needs a fresh check, not just Task 1/4's earlier reads):
    ```bash
-   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "ss -ltnp | grep ':3001\b' || echo '3001 is free'"
+   ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 "ss -ltnp | grep ':3002\b' || echo '3002 is free'"
    ```
-   If this prints anything other than "3001 is free", **stop** — do not proceed until the human has decided on a different host port (and Task 2's `docker-compose.prod.yml` / this file's proxy target are updated to match).
+   If this prints anything other than "3002 is free", **stop** — do not proceed until the human has decided on a different host port (and Task 2's `docker-compose.prod.yml` / this file's proxy target are updated to match).
 
 2. **Create the CloudPanel site as a static site** under a dedicated `todo`
    site user (mirrors `gifts.cooney.fun`'s and every other existing
@@ -170,12 +168,12 @@ verify it before moving on.
    curl -sI https://todo.cooney.fun/assets/                # expect Cache-Control: public, immutable (on an actual asset file, once deployed)
    curl -sI https://todo.cooney.fun/sw.js                  # expect Cache-Control: no-cache
    curl -sI https://todo.cooney.fun/manifest.webmanifest   # expect Cache-Control: no-cache and Content-Type: application/manifest+json
-   curl -si https://todo.cooney.fun/api/health              # expect 200 {"status":"ok"} proxied from the backend on 127.0.0.1:3001
+   curl -si https://todo.cooney.fun/api/health              # expect 200 {"status":"ok"} proxied from the backend on 127.0.0.1:3002
    ```
 
 10. **Start (or confirm running) the backend container** the nginx
     `/api/` location above proxies to, using Task 2's
-    `backend/docker-compose.prod.yml` (host port `3001` → container
+    `backend/docker-compose.prod.yml` (host port `3002` → container
     port `3000`, per Task 2's report):
     ```bash
     ssh -i ~/.ssh/warp_hostinger root@31.97.10.113 \
