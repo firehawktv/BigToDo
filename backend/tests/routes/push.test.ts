@@ -54,7 +54,7 @@ describe('push routes', () => {
     })
 
     expect(response.statusCode).toBe(200)
-    // Asserts on pushConfig.publicKey — the literal is the throwaway test
+    // Asserts on pushConfig().publicKey — the literal is the throwaway test
     // fixture keypair set in tests/setup.ts, not load-bearing on its own.
     expect(response.json().publicKey).toBe(
       'BB-wMT2JNeA0jv5KRzQt4y6TRuCpf6PmXinm5H28bl2kVEbwnzS67aO3PAAuA4w-ZUv2Bm-IjI8wD1aSGbV0DJ8',

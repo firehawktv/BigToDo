@@ -42,12 +42,17 @@ vi.mock('@anthropic-ai/sdk', () => {
 // Structural safety net, not the thing that makes individual tests pass:
 // every test that exercises the push-send path is expected to mock
 // src/push/send.js or src/push/webPush.js explicitly. This mock only
-// replaces sendNotification, so src/push/webPush.ts's module-scope
-// `setVapidDetails(...)` call still runs for real against the fixture
-// VAPID keypair above — a test file that mocks '../../src/push/send.js' or
-// '../../src/push/webPush.js' overrides this at the module level, so this
-// never runs for them. A test that reaches sendNotification unmocked fails
-// loudly instead of making a real outbound HTTPS request.
+// replaces sendNotification, so src/push/webPush.ts's `getWebPush()` — lazy
+// since the config-accessor refactor, no longer called at module scope —
+// still calls the real `setVapidDetails(...)` against the fixture VAPID
+// keypair above whenever it runs unmocked. tests/validateConfig.test.ts's
+// call to `validateConfig()` is the one path in the suite that reaches
+// `getWebPush()` without mocking webPush.js itself, so that's where the
+// real validation is exercised. A test file that mocks
+// '../../src/push/send.js' or '../../src/push/webPush.js' overrides this at
+// the module level, so this never runs for them. A test that reaches
+// sendNotification unmocked fails loudly instead of making a real outbound
+// HTTPS request.
 // @types/web-push declares only named exports (no `export =`/`export default`),
 // so there is no ambient type for the `.default` field that actually shows up
 // on the module at runtime once Vite's CJS interop wraps it (the real
