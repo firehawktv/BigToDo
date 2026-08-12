@@ -7,7 +7,7 @@ import { mockAnthropicResponse } from '../helpers/mockAnthropic.js'
 const { create } = vi.hoisted(() => ({ create: vi.fn() }))
 
 vi.mock('../../src/ai/anthropic.js', () => ({
-  anthropic: { messages: { create } },
+  getAnthropic: () => ({ messages: { create } }),
 }))
 
 const { proposeBreakdown } = await import('../../src/ai/breakdown.js')

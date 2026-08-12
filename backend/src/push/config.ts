@@ -57,4 +57,7 @@ export function loadPushConfig(env: NodeJS.ProcessEnv = process.env): PushConfig
   }
 }
 
-export const pushConfig = loadPushConfig()
+let cached: PushConfig | undefined
+export function pushConfig(): PushConfig {
+  return (cached ??= loadPushConfig())
+}

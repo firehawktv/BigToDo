@@ -19,7 +19,7 @@ let task: ScheduledTask | undefined
 export function startScheduler(logger: Logger): void {
   if (task !== undefined) return
 
-  const expression = `*/${pushConfig.tickMinutes} * * * *`
+  const expression = `*/${pushConfig().tickMinutes} * * * *`
   logger.info({ expression }, 'starting scheduler')
 
   // The callback must RETURN the promise it awaits — node-cron's `noOverlap`

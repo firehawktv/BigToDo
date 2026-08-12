@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 const sendNotification = vi.hoisted(() => vi.fn())
 
 vi.mock('../../src/push/webPush.js', () => ({
-  webpush: { sendNotification },
+  getWebPush: () => ({ sendNotification }),
 }))
 
 const { closePool } = await import('../../src/db/pool.js')

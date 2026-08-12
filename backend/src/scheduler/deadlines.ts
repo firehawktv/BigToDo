@@ -37,7 +37,7 @@ export async function runDeadlineSweep(
   let alerted = 0
 
   try {
-    const due = await listTasksDueForAlert(pushConfig.deadlineLeadMinutes, MAX_ALERTS_PER_SWEEP)
+    const due = await listTasksDueForAlert(pushConfig().deadlineLeadMinutes, MAX_ALERTS_PER_SWEEP)
 
     for (const task of due) {
       try {
@@ -45,7 +45,7 @@ export async function runDeadlineSweep(
           {
             title: 'ToDo',
             body: alertBody(task, now),
-            url: pushConfig.appUrl,
+            url: pushConfig().appUrl,
           },
           options.logger,
         )

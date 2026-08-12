@@ -30,4 +30,7 @@ export function loadAiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig {
   }
 }
 
-export const aiConfig = loadAiConfig()
+let cached: AiConfig | undefined
+export function aiConfig(): AiConfig {
+  return (cached ??= loadAiConfig())
+}

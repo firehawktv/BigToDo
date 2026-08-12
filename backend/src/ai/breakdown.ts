@@ -1,4 +1,4 @@
-import { anthropic } from './anthropic.js'
+import { getAnthropic } from './anthropic.js'
 import { aiConfig } from './config.js'
 import { AiUnavailableError } from './errors.js'
 import { readStructuredJson, type ClaudeResponseLike } from './response.js'
@@ -68,9 +68,9 @@ export async function proposeBreakdown(
   const details = task.notes === null ? task.title : `${task.title}\n\nNotes: ${task.notes}`
 
   try {
-    response = await anthropic.messages.create(
+    response = await getAnthropic().messages.create(
       {
-        model: aiConfig.breakdownModel,
+        model: aiConfig().breakdownModel,
         max_tokens: 8_000,
         system: SYSTEM_PROMPT,
         output_config: {

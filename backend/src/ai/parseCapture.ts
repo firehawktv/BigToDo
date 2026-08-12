@@ -1,4 +1,4 @@
-import { anthropic } from './anthropic.js'
+import { getAnthropic } from './anthropic.js'
 import { aiConfig } from './config.js'
 import { AiUnavailableError } from './errors.js'
 import { readStructuredJson, type ClaudeResponseLike } from './response.js'
@@ -121,8 +121,8 @@ export async function parseCapture(rawText: string, now: Date = new Date()): Pro
     // installed SDK's types with no cast needed, and the SDK's real `Message`
     // result is structurally assignable to `ClaudeResponseLike` now that its
     // `stop_reason` field allows `null` too — no cast needed here either.
-    response = await anthropic.messages.create({
-      model: aiConfig.parseModel,
+    response = await getAnthropic().messages.create({
+      model: aiConfig().parseModel,
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
       output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },

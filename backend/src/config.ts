@@ -33,4 +33,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 }
 
-export const config = loadConfig()
+let cached: Config | undefined
+export function config(): Config {
+  return (cached ??= loadConfig())
+}

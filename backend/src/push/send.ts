@@ -1,4 +1,4 @@
-import { webpush } from './webPush.js'
+import { getWebPush } from './webPush.js'
 import type { Logger } from '../logger.js'
 import {
   deletePushSubscriptionByEndpoint,
@@ -52,7 +52,7 @@ export async function sendToAllSubscriptions(
 
   for (const subscription of subscriptions) {
     try {
-      await webpush.sendNotification(
+      await getWebPush().sendNotification(
         {
           endpoint: subscription.endpoint,
           keys: { p256dh: subscription.p256dh, auth: subscription.auth },

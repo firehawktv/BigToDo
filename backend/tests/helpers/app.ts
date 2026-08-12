@@ -9,5 +9,5 @@ export async function buildTestApp(): Promise<FastifyInstance> {
 }
 
 export function authHeaders(): { authorization: string } {
-  return { authorization: `Bearer ${config.apiToken}` }
+  return { authorization: `Bearer ${config().apiToken}` }
 }

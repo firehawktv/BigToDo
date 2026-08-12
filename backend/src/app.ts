@@ -16,7 +16,7 @@ export interface BuildAppOptions {
 
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: opts.logger === false ? false : { level: config.logLevel },
+    logger: opts.logger === false ? false : { level: config().logLevel },
     // Fastify's default ajv options set removeAdditional: true, which silently
     // strips properties disallowed by `additionalProperties: false` instead of
     // rejecting the request. Our schemas rely on unknown properties producing

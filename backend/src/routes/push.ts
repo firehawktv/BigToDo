@@ -36,7 +36,7 @@ export async function pushRoutes(app: FastifyInstance): Promise<void> {
       onRequest: app.requireAuth,
       schema: { response: { 200: VapidKeySchema, 401: ErrorSchema } },
     },
-    async () => ({ publicKey: pushConfig.publicKey }),
+    async () => ({ publicKey: pushConfig().publicKey }),
   )
 
   typedApp.post(
@@ -84,7 +84,7 @@ export async function pushRoutes(app: FastifyInstance): Promise<void> {
       // Verifying push end to end on iOS is fiddly enough that a deliberate
       // test send is worth the endpoint.
       sendToAllSubscriptions(
-        { title: 'ToDo', body: 'Test notification — push is working.', url: pushConfig.appUrl },
+        { title: 'ToDo', body: 'Test notification — push is working.', url: pushConfig().appUrl },
         request.log,
       ),
   )

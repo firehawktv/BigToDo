@@ -15,4 +15,7 @@ export function loadDatabaseConfig(env: NodeJS.ProcessEnv = process.env): Databa
   return { databaseUrl: required(env, 'DATABASE_URL') }
 }
 
-export const databaseConfig = loadDatabaseConfig()
+let cached: DatabaseConfig | undefined
+export function databaseConfig(): DatabaseConfig {
+  return (cached ??= loadDatabaseConfig())
+}

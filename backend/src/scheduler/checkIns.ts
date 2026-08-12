@@ -82,12 +82,12 @@ export async function runCheckInSweep(
     const { date } = zonedNow(now, settings.timezone)
     const sentToday = await countCheckInsOnLocalDate(date, settings.timezone)
 
-    if (!shouldSendCheckIn({ now, settings, sentToday, tickMinutes: pushConfig.tickMinutes, random })) {
+    if (!shouldSendCheckIn({ now, settings, sentToday, tickMinutes: pushConfig().tickMinutes, random })) {
       return { sent: false }
     }
 
     const result = await sendToAllSubscriptions(
-      { title: 'ToDo', body: CHECK_IN_BODY, url: pushConfig.appUrl },
+      { title: 'ToDo', body: CHECK_IN_BODY, url: pushConfig().appUrl },
       options.logger,
     )
 

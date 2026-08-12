@@ -33,8 +33,8 @@ describe('bearer token auth', () => {
   })
 
   it('rejects a wrong token of the same length', async () => {
-    const forgedToken = 'b'.repeat(config.apiToken.length)
-    expect(forgedToken.length).toBe(config.apiToken.length)
+    const forgedToken = 'b'.repeat(config().apiToken.length)
+    expect(forgedToken.length).toBe(config().apiToken.length)
 
     const response = await app.inject({
       method: 'GET',

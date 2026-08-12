@@ -29,7 +29,7 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     if (header === undefined || !header.startsWith(BEARER_PREFIX)) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
-    if (!tokensMatch(header.slice(BEARER_PREFIX.length), config.apiToken)) {
+    if (!tokensMatch(header.slice(BEARER_PREFIX.length), config().apiToken)) {
       return reply.code(401).send({ error: 'Unauthorized' })
     }
   }
