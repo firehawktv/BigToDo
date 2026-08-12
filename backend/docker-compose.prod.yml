@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: todo
+    # No `ports:` mapping at all — Postgres is reachable only via the
+    # Docker-internal network (service name `db`), matching the confirmed
+    # convention of every other Postgres container already running on this
+    # shared VPS. Stricter than even a 127.0.0.1-bound host port: there is
+    # no host-side socket for it whatsoever.
+    volumes:
+      - todo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://todo:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/todo
+
+volumes:
+  todo_pgdata:

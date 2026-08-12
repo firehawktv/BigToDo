@@ -1,0 +1,15 @@
+node_modules
+dist
+tests
+*.test.ts
+.env
+.env.*
+!.env.production.example
+knowledge
+memory
+plans
+SCRATCHPAD.md
+TASK-QUEUE.md
+WORKING.md
+hipocampus.config.json
+.git
