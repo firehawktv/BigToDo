@@ -86,3 +86,86 @@ The resulting `dist/` is what gets synced into `/home/todo/htdocs/todo.cooney.fu
 ### 6. Verify end to end
 
 Visit `https://todo.cooney.fun` in a real browser. Enter the `API_TOKEN` from `.env`. Confirm the task list loads (empty is fine — this is a fresh database). This confirms the full path: browser → nginx (TLS) → `/api/*` proxy → backend container → Postgres container.
+
+## Routine deploy (after the first-time setup above)
+
+Run on the VPS for every subsequent deploy of a merged change:
+
+```bash
+cd /srv/todo-app
+git pull
+
+# Backend: rebuild the image, run any new migrations, restart with zero
+# double-running of the scheduler — stop before start, never start-then-stop,
+# since this app's scheduler (node-cron) must never run in two containers
+# simultaneously even briefly (see the plan's Global Constraints).
+cd backend
+docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml stop backend
+docker compose -f docker-compose.prod.yml run --rm backend npm run migrate
+docker compose -f docker-compose.prod.yml up -d backend
+curl http://127.0.0.1:3002/health
+
+# Frontend: rebuild and resync
+cd ../frontend
+npm ci
+npm run build
+rsync -a --delete --exclude-from=/srv/todo-app/deploy/rsync-exclude.txt dist/ /home/todo/htdocs/todo.cooney.fun/
+sudo chown -R todo:todo /home/todo/htdocs/todo.cooney.fun/
+```
+
+No nginx reload is needed for a routine deploy — nginx serves `/home/todo/htdocs/todo.cooney.fun/`'s files directly from disk on every request; syncing new files into that directory is immediately live with no nginx restart, and `/api/*` continues proxying to the same backend port whether or not the backend container behind it was just replaced. The `chown` after the rsync matches the ownership fix `deploy/vps-site-setup-commands.md` step 4 applies after its own first-time rsync — an `rsync` run as `root` over SSH still lands root-owned files, which breaks the `todo` site user's expected ownership of its own htdocs directory, so every resync (not just the first) needs the same fix.
+
+### Post-deploy verification checklist
+
+Run through this after every deploy — "the commands succeeded" is not the same as "the app works":
+
+1. `/health` isn't proxied publicly in this plan's nginx config (only `/api/*` is) — use `curl -H "Authorization: Bearer $API_TOKEN" https://todo.cooney.fun/api/tasks` as the reachability check instead, and confirm a `200` with a JSON task array (even if empty).
+2. Open `https://todo.cooney.fun` in a real browser — confirm the app loads, the token gate works, and (if you already have a token stored from before) the existing task list still shows your real tasks, not an empty/broken state.
+3. Submit a real capture ("test deploy check") and confirm it appears in the list — exercises the full backend + AI path, not just static serving.
+4. If this deploy touched anything push- or scheduler-related, use the settings screen's "Send test notification" button and confirm a real notification arrives — this is the one path that silently breaks without any error surfaced elsewhere, per `backend/README.md`'s own note that `POST /push/test` exists specifically because push delivery is fiddly to verify.
+5. Check `docker compose -f docker-compose.prod.yml logs backend --tail 50` for any startup errors or unexpected warnings.
+
+## Backups
+
+A nightly `pg_dump` runs via cron (`deploy/backup-db.sh`), writing gzipped SQL dumps to `/srv/todo-backups/`, retained for 14 days.
+
+### Set up the nightly backup
+
+1. The script is already executable in the repo (`deploy/backup-db.sh`, `chmod +x` applied at commit time) — no separate build step.
+
+2. **⚠️ LIVE VPS CHANGE** — writes a real backup file to disk. Test it manually once, after the first-time setup above is complete, before trusting it as a cron job:
+
+   ```bash
+   /srv/todo-app/deploy/backup-db.sh
+   ls -la /srv/todo-backups/
+   gunzip -c /srv/todo-backups/todo-*.sql.gz | head -20
+   ```
+
+   Expected: a `.sql.gz` file exists, and decompressing it shows real SQL (`CREATE TABLE`, `COPY`, etc.) — confirms the dump isn't empty or corrupted before trusting it as a cron job.
+
+3. **⚠️ LIVE VPS CHANGE** — installs a recurring, unattended job that will run every night indefinitely:
+
+   ```bash
+   crontab -e
+   ```
+
+   Add:
+
+   ```cron
+   0 3 * * * /srv/todo-app/deploy/backup-db.sh >> /srv/todo-backups/backup.log 2>&1
+   ```
+
+   Runs nightly at 03:00 server time, logging output (including any failure) to `backup.log` rather than relying on cron's mail delivery, which is often unconfigured on a fresh VPS.
+
+### Restore from a backup
+
+```bash
+cd /srv/todo-app/backend
+docker compose -f docker-compose.prod.yml stop backend
+gunzip -c /srv/todo-backups/todo-YYYYMMDD-HHMMSS.sql.gz | \
+  docker compose -f docker-compose.prod.yml exec -T db psql -U todo todo
+docker compose -f docker-compose.prod.yml up -d backend
+```
+
+**This overwrites the current database with the backup's contents** — confirm you're restoring the intended backup file before running this, and stop the backend first (above) so nothing writes to the database mid-restore.
