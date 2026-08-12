@@ -55,6 +55,11 @@ export type CaptureResponse =
   | { type: 'shortlist'; minutes: number; tasks: Task[] }
   | { type: 'batch'; batch: CaptureBatch; tasks: Task[] }
 
+export interface ProposedSubtask {
+  title: string
+  estimatedMinutes: number | null
+}
+
 export interface CheckInSettings {
   enabled: boolean
   activeFrom: string
