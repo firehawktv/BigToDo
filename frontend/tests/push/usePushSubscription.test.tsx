@@ -95,6 +95,18 @@ describe('usePushSubscriptionStatus', () => {
     await waitFor(() => expect(receivedBody).toEqual(FAKE_SUBSCRIPTION.toJSON()))
   })
 
+  it('reports "error" and does not throw unhandled when serviceWorker.ready rejects', async () => {
+    globalThis.Notification = { permission: 'default' } as unknown as typeof Notification
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { ready: Promise.reject(new Error('registration failed')) },
+      configurable: true,
+    })
+
+    const { result } = renderHook(() => usePushSubscriptionStatus(), { wrapper })
+
+    await waitFor(() => expect(result.current.status).toBe('error'))
+  })
+
   it('reports "permission-denied" without calling subscribe when the user declines', async () => {
     globalThis.Notification = {
       permission: 'default',

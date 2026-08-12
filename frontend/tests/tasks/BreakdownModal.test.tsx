@@ -63,6 +63,7 @@ describe('BreakdownModal', () => {
   })
 
   it('lets the user remove a proposed subtask before saving', async () => {
+    let receivedBody: unknown = null
     server.use(
       http.post('/api/tasks/t1/breakdown', () =>
         HttpResponse.json({
@@ -73,8 +74,7 @@ describe('BreakdownModal', () => {
         }),
       ),
       http.post('/api/tasks/t1/subtasks', async ({ request }) => {
-        const body = (await request.json()) as { subtasks: unknown[] }
-        expect(body.subtasks).toHaveLength(1)
+        receivedBody = await request.json()
         return HttpResponse.json({ tasks: [] }, { status: 201 })
       }),
     )
@@ -84,6 +84,26 @@ describe('BreakdownModal', () => {
     await screen.findByDisplayValue('Remove me')
     await user.click(screen.getByRole('button', { name: /remove.*remove me/i }))
     await user.click(screen.getByRole('button', { name: /^save/i }))
+
+    await waitFor(() =>
+      expect(receivedBody).toEqual({ subtasks: [{ title: 'Keep me', estimatedMinutes: 10 }] }),
+    )
+  })
+
+  it('shows a visible error when saving subtasks fails', async () => {
+    server.use(
+      http.post('/api/tasks/t1/breakdown', () =>
+        HttpResponse.json({ subtasks: [{ title: 'Keep me', estimatedMinutes: 10 }] }),
+      ),
+      http.post('/api/tasks/t1/subtasks', () => HttpResponse.json({ error: 'boom' }, { status: 500 })),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<BreakdownModal task={TASK} onClose={() => {}} />)
+    await screen.findByDisplayValue('Keep me')
+    await user.click(screen.getByRole('button', { name: /^save/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/boom/i)
   })
 
   it('shows a retryable message on a 503 rather than a generic error', async () => {

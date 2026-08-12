@@ -6,6 +6,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   'permission-denied': 'Notifications are blocked. Enable them in your browser/device settings to subscribe.',
   unsubscribed: 'Notifications are off.',
   subscribed: 'Notifications are on.',
+  error: "Couldn't check your notification status. Try reloading the page.",
 }
 
 export function PushSettings() {
@@ -13,6 +14,26 @@ export function PushSettings() {
   const [testResult, setTestResult] = useState<{ sent: number; pruned: number; failed: number } | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
   const [isSendingTest, setIsSendingTest] = useState(false)
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
+  const [unsubscribeError, setUnsubscribeError] = useState<string | null>(null)
+
+  async function handleSubscribe(): Promise<void> {
+    setSubscribeError(null)
+    try {
+      await subscribe()
+    } catch {
+      setSubscribeError('Failed to subscribe to notifications.')
+    }
+  }
+
+  async function handleUnsubscribe(): Promise<void> {
+    setUnsubscribeError(null)
+    try {
+      await unsubscribe()
+    } catch {
+      setUnsubscribeError('Failed to unsubscribe from notifications.')
+    }
+  }
 
   async function handleSendTest(): Promise<void> {
     setIsSendingTest(true)
@@ -43,16 +64,20 @@ export function PushSettings() {
       )}
 
       {(status === 'unsubscribed' || status === 'permission-denied') && (
-        <button type="button" onClick={() => void subscribe()}>
-          Subscribe
-        </button>
+        <>
+          <button type="button" onClick={() => void handleSubscribe()}>
+            Subscribe
+          </button>
+          {subscribeError !== null && <p role="alert">{subscribeError}</p>}
+        </>
       )}
 
       {status === 'subscribed' && (
         <>
-          <button type="button" onClick={() => void unsubscribe()}>
+          <button type="button" onClick={() => void handleUnsubscribe()}>
             Unsubscribe
           </button>
+          {unsubscribeError !== null && <p role="alert">{unsubscribeError}</p>}
           <button type="button" onClick={() => void handleSendTest()} disabled={isSendingTest}>
             Send test notification
           </button>

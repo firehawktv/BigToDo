@@ -84,6 +84,93 @@ describe('CaptureBox', () => {
     expect(screen.getByText('buy milk')).toBeInTheDocument()
   })
 
+  it('shows a visible error when capture fails', async () => {
+    server.use(http.post('/api/capture', () => HttpResponse.json({ error: 'boom' }, { status: 500 })))
+    const user = userEvent.setup()
+
+    renderWithClient(<CaptureBox />)
+    await user.type(screen.getByRole('textbox'), 'buy milk')
+    await user.click(screen.getByRole('button', { name: /go|submit|capture/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/boom/i)
+  })
+
+  it('replaces the failure banner with newly parsed tasks after a successful retry', async () => {
+    server.use(
+      http.post('/api/capture', () =>
+        HttpResponse.json(
+          {
+            type: 'batch',
+            batch: {
+              id: 'b1',
+              rawText: 'buy milk',
+              parseStatus: 'failed',
+              parseError: 'Claude request failed',
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+            tasks: [{ id: 't1', title: 'buy milk', priority: 'medium', status: 'open', notes: 'buy milk' }],
+          },
+          { status: 201 },
+        ),
+      ),
+      http.post('/api/capture-batches/b1/parse', () =>
+        HttpResponse.json({
+          batch: {
+            id: 'b1',
+            rawText: 'buy milk',
+            parseStatus: 'parsed',
+            parseError: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+          tasks: [{ id: 't2', title: 'Buy milk', priority: 'medium', status: 'open' }],
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<CaptureBox />)
+    await user.type(screen.getByRole('textbox'), 'buy milk')
+    await user.click(screen.getByRole('button', { name: /go|submit|capture/i }))
+
+    const retryButton = await screen.findByRole('button', { name: /retry/i })
+    await user.click(retryButton)
+
+    expect(await screen.findByText('Buy milk')).toBeInTheDocument()
+    expect(screen.queryByText(/couldn't parse/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a visible error when a retry itself fails', async () => {
+    server.use(
+      http.post('/api/capture', () =>
+        HttpResponse.json(
+          {
+            type: 'batch',
+            batch: {
+              id: 'b1',
+              rawText: 'buy milk',
+              parseStatus: 'failed',
+              parseError: 'Claude request failed',
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+            tasks: [{ id: 't1', title: 'buy milk', priority: 'medium', status: 'open', notes: 'buy milk' }],
+          },
+          { status: 201 },
+        ),
+      ),
+      http.post('/api/capture-batches/b1/parse', () => HttpResponse.json({ error: 'still broken' }, { status: 500 })),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<CaptureBox />)
+    await user.type(screen.getByRole('textbox'), 'buy milk')
+    await user.click(screen.getByRole('button', { name: /go|submit|capture/i }))
+
+    const retryButton = await screen.findByRole('button', { name: /retry/i })
+    await user.click(retryButton)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/still broken/i)
+  })
+
   it('clears the input after a successful submission', async () => {
     server.use(
       http.post('/api/capture', () =>

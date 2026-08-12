@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useCapture } from './useCapture.js'
 import { CaptureResult } from './CaptureResult.js'
+import { apiErrorMessage } from '../api/errors.js'
 
 export function CaptureBox() {
   const [text, setText] = useState('')
@@ -25,6 +26,9 @@ export function CaptureBox() {
           Go
         </button>
       </form>
+      {capture.isError && (
+        <p role="alert">{apiErrorMessage(capture.error, 'Something went wrong capturing that.')}</p>
+      )}
       {capture.data !== undefined && <CaptureResult result={capture.data} />}
     </div>
   )

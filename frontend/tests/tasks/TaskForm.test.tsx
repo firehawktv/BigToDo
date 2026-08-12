@@ -52,4 +52,15 @@ describe('TaskForm', () => {
 
     await vi.waitFor(() => expect(input).toHaveValue(''))
   })
+
+  it('shows a visible error when creation fails', async () => {
+    server.use(http.post('/api/tasks', () => HttpResponse.json({ error: 'Title is required' }, { status: 400 })))
+    const user = userEvent.setup()
+
+    renderWithClient(<TaskForm onCreated={() => {}} />)
+    await user.type(screen.getByLabelText(/title/i), 'Call the dentist')
+    await user.click(screen.getByRole('button', { name: /add/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/title is required/i)
+  })
 })

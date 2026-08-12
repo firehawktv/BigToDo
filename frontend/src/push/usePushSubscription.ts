@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../api/client.js'
 
-type PushStatus = 'unsupported' | 'not-installed' | 'permission-denied' | 'unsubscribed' | 'subscribed'
+type PushStatus =
+  | 'unsupported'
+  | 'not-installed'
+  | 'permission-denied'
+  | 'unsubscribed'
+  | 'subscribed'
+  | 'error'
 
 /**
  * iOS Safari only exposes the Push API to a PWA that has been added to the
@@ -30,9 +36,27 @@ export function usePushSubscriptionStatus() {
       setStatus('unsupported')
       return
     }
+    let cancelled = false
     navigator.serviceWorker.ready
       .then((registration) => registration.pushManager.getSubscription())
-      .then((sub) => setStatus(sub === null ? 'unsubscribed' : 'subscribed'))
+      .then((sub) => {
+        if (cancelled) return
+        setStatus(sub === null ? 'unsubscribed' : 'subscribed')
+      })
+      .catch(() => {
+        if (cancelled) return
+        // A rejected readiness/getSubscription promise means we genuinely
+        // don't know the subscription state — leaving the optimistic
+        // 'unsubscribed' default would misrepresent that as "known off".
+        // 'error' is a distinct, recognizable status rather than reusing
+        // 'unsupported' (which specifically means "no Push API here at
+        // all" per the comment above) or 'unsubscribed' (which claims we
+        // successfully checked).
+        setStatus('error')
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function subscribe(): Promise<void> {

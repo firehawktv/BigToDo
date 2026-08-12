@@ -114,7 +114,9 @@ should be revisited if the number of screens grows.
 
 - **Tasks** (`src/tasks/TaskList.tsx`, `src/capture/CaptureBox.tsx`):
   capture a raw text dump, review the tasks the backend's LLM parsed out of
-  it, view/edit/delete tasks, and break a flagged task down into subtasks
+  it, view/edit/delete tasks (the "Edit" button on each task opens
+  `src/tasks/TaskDetail.tsx` inline for notes, priority, due date, and
+  estimate), and break a flagged task down into subtasks
   (`src/tasks/BreakdownModal.tsx`).
 - **Settings** (`src/settings/SettingsScreen.tsx`): push notification
   subscribe/unsubscribe/test, and check-in schedule preferences

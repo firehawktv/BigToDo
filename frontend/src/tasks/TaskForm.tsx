@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react'
 import { useCreateTask } from './useTasks.js'
+import { apiErrorMessage } from '../api/errors.js'
 import type { Task } from '../api/types.js'
 
 export function TaskForm({ onCreated }: { onCreated: (task: Task) => void }) {
@@ -28,6 +29,9 @@ export function TaskForm({ onCreated }: { onCreated: (task: Task) => void }) {
       <button type="submit" disabled={createTask.isPending}>
         Add
       </button>
+      {createTask.isError && (
+        <p role="alert">{apiErrorMessage(createTask.error, 'Something went wrong adding this task.')}</p>
+      )}
     </form>
   )
 }

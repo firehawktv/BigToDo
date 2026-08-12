@@ -1,12 +1,31 @@
 import { type FormEvent, useState } from 'react'
 import { useUpdateTask } from './useTasks.js'
+import { apiErrorMessage } from '../api/errors.js'
 import type { Task } from '../api/types.js'
+
+/**
+ * `<input type="datetime-local">` reads/writes a timezone-free
+ * "YYYY-MM-DDTHH:mm" string interpreted in the browser's local timezone —
+ * it cannot parse or display an ISO-8601 UTC string directly. These two
+ * helpers are the only place that conversion happens.
+ */
+function isoToLocalInputValue(iso: string): string {
+  const date = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function localInputValueToIso(value: string): string {
+  // `new Date(value)` on a timezone-free "YYYY-MM-DDTHH:mm" string parses it
+  // as local time, so converting to ISO here correctly captures the offset.
+  return new Date(value).toISOString()
+}
 
 export function TaskDetail({ task, onSaved }: { task: Task; onSaved?: (task: Task) => void }) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
   const [priority, setPriority] = useState<Task['priority']>(task.priority)
-  const [dueAt, setDueAt] = useState(task.dueAt ?? '')
+  const [dueAt, setDueAt] = useState(task.dueAt === null ? '' : isoToLocalInputValue(task.dueAt))
   const [estimatedMinutes, setEstimatedMinutes] = useState(
     task.estimatedMinutes === null ? '' : String(task.estimatedMinutes),
   )
@@ -23,7 +42,7 @@ export function TaskDetail({ task, onSaved }: { task: Task; onSaved?: (task: Tas
           title: trimmedTitle,
           notes: notes.trim() === '' ? null : notes,
           priority,
-          dueAt: dueAt === '' ? null : dueAt,
+          dueAt: dueAt === '' ? null : localInputValueToIso(dueAt),
           estimatedMinutes: estimatedMinutes === '' ? null : Number(estimatedMinutes),
         },
       },
@@ -66,6 +85,10 @@ export function TaskDetail({ task, onSaved }: { task: Task; onSaved?: (task: Tas
         value={estimatedMinutes}
         onChange={(e) => setEstimatedMinutes(e.target.value)}
       />
+
+      {updateTask.isError && (
+        <p role="alert">{apiErrorMessage(updateTask.error, 'Something went wrong saving this task.')}</p>
+      )}
 
       <button type="submit" disabled={updateTask.isPending}>
         Save

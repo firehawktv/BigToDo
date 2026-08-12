@@ -74,11 +74,74 @@ describe('TaskList', () => {
     expect(await screen.findByRole('button', { name: /break.*down/i })).toBeInTheDocument()
   })
 
+  it('does not show a "Break this down?" affordance when suggestBreakdown is false', async () => {
+    server.use(http.get('/api/tasks', () => HttpResponse.json({ tasks: [TASK] })))
+
+    renderWithClient(<TaskList />)
+
+    await screen.findByText('Buy milk')
+    expect(screen.queryByRole('button', { name: /break.*down/i })).not.toBeInTheDocument()
+  })
+
   it('surfaces an error state when the fetch fails', async () => {
     server.use(http.get('/api/tasks', () => HttpResponse.json({ error: 'boom' }, { status: 500 })))
 
     renderWithClient(<TaskList />)
 
     expect(await screen.findByText(/something went wrong|couldn't load/i)).toBeInTheDocument()
+  })
+
+  it('opens the edit view via TaskDetail, saves a changed field, and fires the mutation', async () => {
+    let receivedBody: unknown = null
+    server.use(
+      http.get('/api/tasks', () => HttpResponse.json({ tasks: [TASK] })),
+      http.patch('/api/tasks/1', async ({ request }) => {
+        receivedBody = await request.json()
+        return HttpResponse.json({ ...TASK, title: 'Buy oat milk' })
+      }),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<TaskList />)
+    await screen.findByText('Buy milk')
+    await user.click(screen.getByRole('button', { name: /^edit$/i }))
+
+    // TaskDetail seeds its own "Title" input with the task's current title —
+    // getByDisplayValue disambiguates it from TaskForm's empty "Title" input.
+    const titleInput = screen.getByDisplayValue('Buy milk')
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Buy oat milk')
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+    await waitFor(() => expect(receivedBody).not.toBeNull())
+    expect((receivedBody as { title: string }).title).toBe('Buy oat milk')
+  })
+
+  it('shows a visible error when toggling status fails', async () => {
+    server.use(
+      http.get('/api/tasks', () => HttpResponse.json({ tasks: [TASK] })),
+      http.patch('/api/tasks/1', () => HttpResponse.json({ error: 'boom' }, { status: 500 })),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<TaskList />)
+    await screen.findByText('Buy milk')
+    await user.click(screen.getByRole('checkbox', { name: /buy milk/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/boom/i)
+  })
+
+  it('shows a visible error when deletion fails', async () => {
+    server.use(
+      http.get('/api/tasks', () => HttpResponse.json({ tasks: [TASK] })),
+      http.delete('/api/tasks/1', () => HttpResponse.json({ error: 'boom' }, { status: 500 })),
+    )
+    const user = userEvent.setup()
+
+    renderWithClient(<TaskList />)
+    await screen.findByText('Buy milk')
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/boom/i)
   })
 })

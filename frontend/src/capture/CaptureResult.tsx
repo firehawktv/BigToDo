@@ -1,4 +1,5 @@
 import { useReparseCaptureBatch } from './useCapture.js'
+import { apiErrorMessage } from '../api/errors.js'
 import type { CaptureResponse } from '../api/types.js'
 
 export function CaptureResult({ result }: { result: CaptureResponse }) {
@@ -21,7 +22,11 @@ export function CaptureResult({ result }: { result: CaptureResponse }) {
     )
   }
 
-  const { batch, tasks } = result
+  // Prefer a successful retry's response over the original prop — otherwise
+  // the failure banner and stale tasks would keep showing forever even
+  // after the retry actually parsed the text correctly.
+  const shown = reparse.data ?? result
+  const { batch, tasks } = shown
   return (
     <div>
       {batch.parseStatus === 'failed' && (
@@ -30,6 +35,9 @@ export function CaptureResult({ result }: { result: CaptureResponse }) {
           <button type="button" onClick={() => reparse.mutate(batch.id)} disabled={reparse.isPending}>
             Retry
           </button>
+          {reparse.isError && (
+            <p role="alert">{apiErrorMessage(reparse.error, 'Retry failed. Please try again.')}</p>
+          )}
         </div>
       )}
       <ul>

@@ -32,8 +32,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clientList) => {
       // Focus an already-open tab rather than opening a duplicate one.
+      // Compare pathnames, not full URLs: the payload's `url` is relative
+      // (e.g. "/") while `client.url` is always absolute, so a strict
+      // equality check would never match and always open a duplicate tab.
+      const targetPath = new URL(url, self.location.origin).pathname
       for (const client of clientList) {
-        if (client.url === url && 'focus' in client) return client.focus()
+        if (new URL(client.url).pathname === targetPath && 'focus' in client) return client.focus()
       }
       return self.clients.openWindow(url)
     }),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useProposeBreakdown, useSaveSubtasks } from './useBreakdown.js'
 import type { ProposedSubtask, Task } from '../api/types.js'
-import { ApiError } from '../api/errors.js'
+import { ApiError, apiErrorMessage } from '../api/errors.js'
 
 export function BreakdownModal({ task, onClose }: { task: Task; onClose: () => void }) {
   const [subtasks, setSubtasks] = useState<ProposedSubtask[]>([])
@@ -95,6 +95,9 @@ export function BreakdownModal({ task, onClose }: { task: Task; onClose: () => v
       <button type="button" onClick={onClose}>
         Cancel
       </button>
+      {save.isError && (
+        <p role="alert">{apiErrorMessage(save.error, 'Something went wrong saving these subtasks.')}</p>
+      )}
     </div>
   )
 }
