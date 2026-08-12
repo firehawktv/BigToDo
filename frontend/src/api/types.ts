@@ -51,6 +51,10 @@ export interface CaptureBatch {
   createdAt: string
 }
 
+export type CaptureResponse =
+  | { type: 'shortlist'; minutes: number; tasks: Task[] }
+  | { type: 'batch'; batch: CaptureBatch; tasks: Task[] }
+
 export interface CheckInSettings {
   enabled: boolean
   activeFrom: string
