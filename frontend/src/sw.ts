@@ -2,10 +2,26 @@
 declare const self: ServiceWorkerGlobalScope
 
 import { precacheAndRoute } from 'workbox-precaching'
+import { clientsClaim } from 'workbox-core'
 
 // injectManifest requires this line — vite-plugin-pwa replaces
 // self.__WB_MANIFEST with the list of built assets to precache.
 precacheAndRoute(self.__WB_MANIFEST)
+
+// `registerType: 'autoUpdate'` in vite.config.ts only controls how the
+// *registration* behaves — for the `injectManifest` strategy it does not,
+// by itself, make a newly-installed service worker take over. Without
+// these two calls, a new SW finishes installing but sits in "waiting"
+// until every open tab/PWA instance for this origin is fully closed (not
+// just reloaded), so a deploy can go live on the server while installed
+// clients keep serving the previous precached HTML/JS/CSS indefinitely —
+// and once `rsync --delete` prunes the old build's hashed asset files,
+// those stale references start 404ing. `skipWaiting()` activates the new
+// SW as soon as it installs; `clientsClaim()` lets it take control of
+// already-open tabs immediately, so the very next navigation/reload gets
+// the current build instead of requiring a full close-and-reopen.
+self.skipWaiting()
+clientsClaim()
 
 /**
  * Payload shape is documented in backend/README.md's "Notification payload"
