@@ -1,5 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useCheckInSettingsQuery, useUpdateCheckInSettings } from './useCheckInSettings.js'
+import { Card, Checkbox, Label, TextInput, Button } from '../ui/index.js'
+import styles from './CheckInSettingsForm.module.css'
 
 export function CheckInSettingsForm() {
   const { data: settings } = useCheckInSettingsQuery()
@@ -49,54 +51,76 @@ export function CheckInSettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="check-in-enabled">Enabled</label>
-      <input
-        id="check-in-enabled"
-        type="checkbox"
-        checked={enabled}
-        onChange={(e) => setEnabled(e.target.checked)}
-      />
+    <Card>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.checkboxRow}>
+          <Checkbox
+            id="check-in-enabled"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+          />
+          <Label htmlFor="check-in-enabled" className={styles.label}>
+            Enabled
+          </Label>
+        </div>
 
-      <label htmlFor="check-in-active-from">From</label>
-      <input
-        id="check-in-active-from"
-        type="time"
-        value={activeFrom}
-        onChange={(e) => setActiveFrom(e.target.value)}
-      />
+        <div className={styles.row}>
+          <div>
+            <Label htmlFor="check-in-active-from">From</Label>
+            <TextInput
+              id="check-in-active-from"
+              type="time"
+              className="mono-figure"
+              value={activeFrom}
+              onChange={(e) => setActiveFrom(e.target.value)}
+            />
+          </div>
 
-      <label htmlFor="check-in-active-to">Until</label>
-      <input
-        id="check-in-active-to"
-        type="time"
-        value={activeTo}
-        onChange={(e) => setActiveTo(e.target.value)}
-      />
+          <div>
+            <Label htmlFor="check-in-active-to">Until</Label>
+            <TextInput
+              id="check-in-active-to"
+              type="time"
+              className="mono-figure"
+              value={activeTo}
+              onChange={(e) => setActiveTo(e.target.value)}
+            />
+          </div>
+        </div>
 
-      <label htmlFor="check-in-count">How many times per day</label>
-      <input
-        id="check-in-count"
-        type="number"
-        min="0"
-        value={checkInsPerDay}
-        onChange={(e) => setCheckInsPerDay(e.target.value)}
-      />
+        <div>
+          <Label htmlFor="check-in-count">How many times per day</Label>
+          <TextInput
+            id="check-in-count"
+            type="number"
+            min="0"
+            className="mono-figure"
+            value={checkInsPerDay}
+            onChange={(e) => setCheckInsPerDay(e.target.value)}
+          />
+        </div>
 
-      <label htmlFor="check-in-timezone">Timezone</label>
-      <input
-        id="check-in-timezone"
-        type="text"
-        value={timezone}
-        onChange={(e) => setTimezone(e.target.value)}
-      />
+        <div>
+          <Label htmlFor="check-in-timezone">Timezone</Label>
+          <TextInput
+            id="check-in-timezone"
+            type="text"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+          />
+        </div>
 
-      {validationError !== null && <p role="alert">{validationError}</p>}
-      {justSaved && <p>Saved</p>}
+        {validationError !== null && (
+          <p role="alert" className={styles.error}>
+            {validationError}
+          </p>
+        )}
+        {justSaved && <p className={styles.saved}>Saved</p>}
 
-      <button type="submit" disabled={updateSettings.isPending}>
-        Save
-      </button>
-    </form>
+        <Button type="submit" variant="primary" disabled={updateSettings.isPending}>
+          Save
+        </Button>
+      </form>
+    </Card>
   )
 }

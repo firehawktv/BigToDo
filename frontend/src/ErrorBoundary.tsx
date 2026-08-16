@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Card, Button } from './ui/index.js'
+import styles from './ErrorBoundary.module.css'
 
 interface State {
   error: Error | null
@@ -25,11 +27,13 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   render() {
     if (this.state.error !== null) {
       return (
-        <div>
-          <p>Something went wrong. Reloading usually fixes it.</p>
-          <button type="button" onClick={() => globalThis.location.reload()}>
-            Reload
-          </button>
+        <div className={styles.screen}>
+          <Card className={styles.card}>
+            <p className={styles.message}>Something went wrong. Reloading usually fixes it.</p>
+            <Button variant="primary" onClick={() => globalThis.location.reload()}>
+              Reload
+            </Button>
+          </Card>
         </div>
       )
     }

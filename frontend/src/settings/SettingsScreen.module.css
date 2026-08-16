@@ -1,0 +1,12 @@
+.title {
+  font: var(--text-title);
+  color: var(--card);
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.sectionHeading {
+  font: var(--text-title);
+  font-size: 1rem;
+  color: var(--card-dim);
+  margin: var(--space-5) 0 var(--space-2);
+}

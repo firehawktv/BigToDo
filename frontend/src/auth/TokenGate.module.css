@@ -1,0 +1,25 @@
+.screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.card {
+  width: min(360px, 100%);
+}
+
+.title {
+  font: var(--text-title);
+  margin: 0 0 var(--space-4);
+}
+
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.submit {
+  width: 100%;
+  justify-content: center;
+}

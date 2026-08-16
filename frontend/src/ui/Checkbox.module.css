@@ -1,0 +1,32 @@
+.checkbox {
+  appearance: none;
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 1.5px solid var(--chrome);
+  border-radius: 4px;
+  background: var(--card-dim);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease-standard);
+}
+
+.checkbox::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  transform: scale(0);
+  transition: transform var(--duration-settle) var(--ease-settle);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  box-shadow: inset 1em 1em var(--amber);
+}
+
+.checkbox:checked {
+  border-color: var(--amber);
+}
+
+.checkbox:checked::before {
+  transform: scale(1);
+}

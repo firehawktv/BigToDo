@@ -1,0 +1,33 @@
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.done .title {
+  color: var(--ink-soft);
+  text-decoration: line-through;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.error {
+  color: var(--rust-on-card);
+  font-size: 0.875rem;
+  margin: var(--space-2) 0 0;
+}
+
+.detail {
+  margin-top: var(--space-3);
+}

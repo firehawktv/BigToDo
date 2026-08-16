@@ -4,6 +4,7 @@ import { TokenGate } from './auth/TokenGate.js'
 import { TaskList } from './tasks/TaskList.js'
 import { CaptureBox } from './capture/CaptureBox.js'
 import { SettingsScreen } from './settings/SettingsScreen.js'
+import styles from './App.module.css'
 
 const queryClient = new QueryClient()
 
@@ -15,23 +16,37 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TokenGate>
-        <nav>
-          <button type="button" onClick={() => setScreen('tasks')} disabled={screen === 'tasks'}>
-            Tasks
-          </button>
-          <button type="button" onClick={() => setScreen('settings')} disabled={screen === 'settings'}>
-            Settings
-          </button>
-        </nav>
+        <div className={styles.shell}>
+          <main className={styles.content}>
+            {screen === 'tasks' ? (
+              <>
+                <CaptureBox />
+                <TaskList />
+              </>
+            ) : (
+              <SettingsScreen />
+            )}
+          </main>
 
-        {screen === 'tasks' ? (
-          <>
-            <CaptureBox />
-            <TaskList />
-          </>
-        ) : (
-          <SettingsScreen />
-        )}
+          <nav className={styles.tabs}>
+            <button
+              type="button"
+              className={styles.tab}
+              onClick={() => setScreen('tasks')}
+              disabled={screen === 'tasks'}
+            >
+              Tasks
+            </button>
+            <button
+              type="button"
+              className={styles.tab}
+              onClick={() => setScreen('settings')}
+              disabled={screen === 'settings'}
+            >
+              Settings
+            </button>
+          </nav>
+        </div>
       </TokenGate>
     </QueryClientProvider>
   )

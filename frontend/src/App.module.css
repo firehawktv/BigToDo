@@ -1,0 +1,57 @@
+.shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--board);
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) calc(64px + var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Binder-tab bar — pinned within thumb reach, like flipping a divider on a
+   kneeboard. The active tab lifts on an amber top rule. */
+.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  background: var(--board-raised);
+  border-top: 1px solid var(--chrome-line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-top: 2px solid transparent;
+  padding: var(--space-3) var(--space-2);
+  font: var(--text-label);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--chrome);
+  cursor: pointer;
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--card);
+}
+
+.tab:disabled {
+  color: var(--amber);
+  border-top-color: var(--amber);
+  cursor: default;
+}

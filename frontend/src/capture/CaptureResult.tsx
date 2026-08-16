@@ -1,23 +1,29 @@
 import { useReparseCaptureBatch } from './useCapture.js'
 import { apiErrorMessage } from '../api/errors.js'
 import type { CaptureResponse } from '../api/types.js'
+import { Card, Button } from '../ui/index.js'
+import styles from './CaptureResult.module.css'
 
 export function CaptureResult({ result }: { result: CaptureResponse }) {
   const reparse = useReparseCaptureBatch()
 
   if (result.type === 'shortlist') {
     return (
-      <div>
-        <p>With {result.minutes} minutes, here's what fits:</p>
-        {result.tasks.length === 0 ? (
-          <p>Nothing short enough right now.</p>
-        ) : (
-          <ul>
-            {result.tasks.map((task) => (
-              <li key={task.id}>{task.title}</li>
-            ))}
-          </ul>
-        )}
+      <div className={styles.wrap}>
+        <Card>
+          <p>With {result.minutes} minutes, here's what fits:</p>
+          {result.tasks.length === 0 ? (
+            <p>Nothing short enough right now.</p>
+          ) : (
+            <ul className={styles.list}>
+              {result.tasks.map((task) => (
+                <li key={task.id} className={styles.item}>
+                  {task.title}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     )
   }
@@ -28,23 +34,36 @@ export function CaptureResult({ result }: { result: CaptureResponse }) {
   const shown = reparse.data ?? result
   const { batch, tasks } = shown
   return (
-    <div>
-      {batch.parseStatus === 'failed' && (
-        <div>
-          <p>Couldn't parse that just now — your text is saved. {batch.parseError}</p>
-          <button type="button" onClick={() => reparse.mutate(batch.id)} disabled={reparse.isPending}>
-            Retry
-          </button>
-          {reparse.isError && (
-            <p role="alert">{apiErrorMessage(reparse.error, 'Retry failed. Please try again.')}</p>
-          )}
-        </div>
-      )}
-      <ul>
-        {tasks.map((task) => (
-          <li key={task.id}>{task.title}</li>
-        ))}
-      </ul>
+    <div className={styles.wrap}>
+      <p className={styles.heading}>Just captured — not filed yet</p>
+      {/* Loose/askew: visibly provisional until the user reviews it, per
+          DESIGN.md's raise from the Exposure Record challenger. */}
+      <Card loose>
+        {batch.parseStatus === 'failed' && (
+          <div>
+            <p className={styles.failed}>
+              Couldn't parse that just now — your text is saved. {batch.parseError}
+            </p>
+            <div className={styles.failedActions}>
+              <Button type="button" onClick={() => reparse.mutate(batch.id)} disabled={reparse.isPending}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+        {reparse.isError && (
+          <p role="alert" className={styles.retryError}>
+            {apiErrorMessage(reparse.error, 'Retry failed. Please try again.')}
+          </p>
+        )}
+        <ul className={styles.list}>
+          {tasks.map((task) => (
+            <li key={task.id} className={styles.item}>
+              {task.title}
+            </li>
+          ))}
+        </ul>
+      </Card>
     </div>
   )
 }

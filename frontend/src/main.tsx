@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App.js'
 import { ErrorBoundary } from './ErrorBoundary.js'
-import './index.css'
+import './ui/tokens.css'
 
 const rootElement = document.getElementById('root')
 if (rootElement === null) {

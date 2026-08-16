@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useProposeBreakdown, useSaveSubtasks } from './useBreakdown.js'
 import type { ProposedSubtask, Task } from '../api/types.js'
 import { ApiError, apiErrorMessage } from '../api/errors.js'
+import { Modal, Button, TextInput } from '../ui/index.js'
+import styles from './BreakdownModal.module.css'
 
 export function BreakdownModal({ task, onClose }: { task: Task; onClose: () => void }) {
   const [subtasks, setSubtasks] = useState<ProposedSubtask[]>([])
@@ -35,69 +37,84 @@ export function BreakdownModal({ task, onClose }: { task: Task; onClose: () => v
   if (propose.isError) {
     const isUnavailable = propose.error instanceof ApiError && propose.error.status === 503
     return (
-      <div role="dialog">
+      <Modal>
         <p>
           {isUnavailable
             ? "Couldn't reach the breakdown service right now."
             : 'Something went wrong proposing a breakdown.'}
         </p>
-        <button type="button" onClick={() => propose.mutate(task.id, { onSuccess: setSubtasks })}>
-          Try again
-        </button>
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
-      </div>
+        <div className={styles.actions}>
+          <Button variant="primary" onClick={() => propose.mutate(task.id, { onSuccess: setSubtasks })}>
+            Try again
+          </Button>
+          <Button onClick={onClose}>Cancel</Button>
+        </div>
+      </Modal>
     )
   }
 
-  if (propose.isPending) return <div role="dialog">Thinking…</div>
+  if (propose.isPending)
+    return (
+      <Modal>
+        <p>Thinking…</p>
+      </Modal>
+    )
 
   if (save.isSuccess) {
     return (
-      <div role="dialog">
-        <p role="status">Subtasks saved.</p>
-      </div>
+      <Modal>
+        <p role="status" className={styles.status}>
+          Subtasks saved.
+        </p>
+      </Modal>
     )
   }
 
   return (
-    <div role="dialog">
-      <h2>Break down: {task.title}</h2>
-      <ul>
+    <Modal>
+      <h2 className={styles.heading}>Break down: {task.title}</h2>
+      <ul className={styles.list}>
         {subtasks.map((subtask, index) => (
-          <li key={index}>
-            <input value={subtask.title} onChange={(e) => updateTitle(index, e.target.value)} />
-            <input
+          <li key={index} className={styles.subtask}>
+            <TextInput
+              className={styles.title}
+              value={subtask.title}
+              onChange={(e) => updateTitle(index, e.target.value)}
+            />
+            <TextInput
               type="number"
+              className={`${styles.minutes} mono-figure`}
               value={subtask.estimatedMinutes ?? ''}
               onChange={(e) => updateEstimatedMinutes(index, e.target.value)}
               aria-label={`Estimated minutes for ${subtask.title}`}
             />
-            <button
-              type="button"
+            <Button
+              size="small"
+              variant="danger"
               onClick={() => removeSubtask(index)}
               aria-label={`Remove ${subtask.title}`}
             >
               ×
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
-      {subtasks.length >= 20 && <p>You can save at most 20 subtasks at a time.</p>}
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={save.isPending || subtasks.length === 0 || subtasks.length > 20}
-      >
-        Save
-      </button>
-      <button type="button" onClick={onClose}>
-        Cancel
-      </button>
+      {subtasks.length >= 20 && <p className={styles.limit}>You can save at most 20 subtasks at a time.</p>}
+      <div className={styles.actions}>
+        <Button
+          variant="primary"
+          onClick={handleSave}
+          disabled={save.isPending || subtasks.length === 0 || subtasks.length > 20}
+        >
+          Save
+        </Button>
+        <Button onClick={onClose}>Cancel</Button>
+      </div>
       {save.isError && (
-        <p role="alert">{apiErrorMessage(save.error, 'Something went wrong saving these subtasks.')}</p>
+        <p role="alert" className={styles.error}>
+          {apiErrorMessage(save.error, 'Something went wrong saving these subtasks.')}
+        </p>
       )}
-    </div>
+    </Modal>
   )
 }

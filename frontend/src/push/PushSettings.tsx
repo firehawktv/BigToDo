@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { usePushSubscriptionStatus } from './usePushSubscription.js'
+import { Card, Button } from '../ui/index.js'
+import styles from './PushSettings.module.css'
 
 const STATUS_MESSAGES: Record<string, string> = {
   'not-installed': 'Install this app to your home screen first to enable notifications.',
@@ -50,8 +52,8 @@ export function PushSettings() {
   }
 
   return (
-    <section>
-      <h2>Push notifications</h2>
+    <Card as="section">
+      <h2 className={styles.heading}>Push notifications</h2>
 
       {status === 'unsupported' ? (
         <p>
@@ -64,32 +66,42 @@ export function PushSettings() {
       )}
 
       {(status === 'unsubscribed' || status === 'permission-denied') && (
-        <>
-          <button type="button" onClick={() => void handleSubscribe()}>
+        <div className={styles.actions}>
+          <Button variant="primary" onClick={() => void handleSubscribe()}>
             Subscribe
-          </button>
-          {subscribeError !== null && <p role="alert">{subscribeError}</p>}
-        </>
+          </Button>
+          {subscribeError !== null && (
+            <p role="alert" className={styles.error}>
+              {subscribeError}
+            </p>
+          )}
+        </div>
       )}
 
       {status === 'subscribed' && (
-        <>
-          <button type="button" onClick={() => void handleUnsubscribe()}>
-            Unsubscribe
-          </button>
-          {unsubscribeError !== null && <p role="alert">{unsubscribeError}</p>}
-          <button type="button" onClick={() => void handleSendTest()} disabled={isSendingTest}>
+        <div className={styles.actions}>
+          <Button onClick={() => void handleUnsubscribe()}>Unsubscribe</Button>
+          <Button onClick={() => void handleSendTest()} disabled={isSendingTest}>
             Send test notification
-          </button>
-          {isSendingTest && <p>Sending test notification&hellip;</p>}
+          </Button>
+          {unsubscribeError !== null && (
+            <p role="alert" className={styles.error}>
+              {unsubscribeError}
+            </p>
+          )}
+          {isSendingTest && <p className={styles.result}>Sending test notification&hellip;</p>}
           {testResult !== null && (
-            <p>
+            <p className={styles.result}>
               Sent {testResult.sent}, pruned {testResult.pruned}, failed {testResult.failed}.
             </p>
           )}
-          {testError !== null && <p role="alert">{testError}</p>}
-        </>
+          {testError !== null && (
+            <p role="alert" className={styles.error}>
+              {testError}
+            </p>
+          )}
+        </div>
       )}
-    </section>
+    </Card>
   )
 }

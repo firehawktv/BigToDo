@@ -1,0 +1,81 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: var(--text-label);
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  border-radius: var(--radius-control);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 120ms var(--ease-standard),
+    border-color 120ms var(--ease-standard),
+    transform 120ms var(--ease-standard);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.default {
+  padding: var(--space-2) var(--space-4);
+}
+
+.small {
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.75rem;
+}
+
+/* The reserved accent — used for the primary action on a screen only. */
+.primary {
+  background: var(--amber);
+  color: var(--amber-ink);
+  border-color: var(--amber);
+}
+
+.primary:hover:not(:disabled) {
+  background: #ffb01a;
+  border-color: #ffb01a;
+}
+
+/* Neutral outline, inherits the surrounding text color so it reads
+   correctly on both board (cream text) and card (ink text). */
+.secondary {
+  background: transparent;
+  color: currentColor;
+  border-color: var(--chrome);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: currentColor;
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: transparent;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.danger {
+  background: transparent;
+  color: var(--rust-on-card);
+  border-color: var(--rust-on-card);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--rust-on-card);
+  color: var(--card);
+}

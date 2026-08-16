@@ -1,0 +1,48 @@
+.heading {
+  font: var(--text-title);
+  margin: 0 0 var(--space-4);
+}
+
+.list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subtask {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  flex: 1 1 auto;
+}
+
+.minutes {
+  width: 5rem;
+}
+
+.limit {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-3);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.error {
+  color: var(--rust-on-card);
+  font-size: 0.875rem;
+  margin: var(--space-2) 0 0;
+}
+
+.status {
+  margin: 0;
+}

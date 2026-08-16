@@ -1,0 +1,15 @@
+.flag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--amber);
+  color: var(--amber-ink);
+  background: var(--amber);
+  font: var(--text-label);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}

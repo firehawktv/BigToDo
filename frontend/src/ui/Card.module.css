@@ -1,0 +1,38 @@
+/*
+ * Cut-paper card stock — the base unit of the board. A recurring clip-ring
+ * motif (two punched holes) on the left edge marks it as a card rather than
+ * a generic list row or panel.
+ */
+.card {
+  position: relative;
+  background: var(--card);
+  color: var(--ink);
+  border-radius: var(--radius-card);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+}
+
+.card::before,
+.card::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--board);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.card::before {
+  top: 16px;
+}
+
+.card::after {
+  bottom: 16px;
+}
+
+.loose {
+  transform: rotate(-1.4deg);
+  box-shadow: var(--shadow-loose);
+  border: 1px dashed var(--chrome);
+}

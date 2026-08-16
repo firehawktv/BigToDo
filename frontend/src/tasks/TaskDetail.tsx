@@ -2,6 +2,8 @@ import { type FormEvent, useState } from 'react'
 import { useUpdateTask } from './useTasks.js'
 import { apiErrorMessage } from '../api/errors.js'
 import type { Task } from '../api/types.js'
+import { Button, Label, TextInput, TextArea, Select } from '../ui/index.js'
+import styles from './TaskDetail.module.css'
 
 /**
  * `<input type="datetime-local">` reads/writes a timezone-free
@@ -51,48 +53,64 @@ export function TaskDetail({ task, onSaved }: { task: Task; onSaved?: (task: Tas
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="detail-title">Title</label>
-      <input id="detail-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <div>
+        <Label htmlFor="detail-title">Title</Label>
+        <TextInput id="detail-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
 
-      <label htmlFor="detail-notes">Notes</label>
-      <textarea id="detail-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <div>
+        <Label htmlFor="detail-notes">Notes</Label>
+        <TextArea id="detail-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </div>
 
-      <label htmlFor="detail-priority">Priority</label>
-      <select
-        id="detail-priority"
-        value={priority}
-        onChange={(e) => setPriority(e.target.value as Task['priority'])}
-      >
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
-      </select>
+      <div className={styles.row}>
+        <div>
+          <Label htmlFor="detail-priority">Priority</Label>
+          <Select
+            id="detail-priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as Task['priority'])}
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </Select>
+        </div>
 
-      <label htmlFor="detail-due-at">Due</label>
-      <input
-        id="detail-due-at"
-        type="datetime-local"
-        value={dueAt}
-        onChange={(e) => setDueAt(e.target.value)}
-      />
+        <div>
+          <Label htmlFor="detail-estimated-minutes">Estimated minutes</Label>
+          <TextInput
+            id="detail-estimated-minutes"
+            type="number"
+            min="0"
+            className="mono-figure"
+            value={estimatedMinutes}
+            onChange={(e) => setEstimatedMinutes(e.target.value)}
+          />
+        </div>
+      </div>
 
-      <label htmlFor="detail-estimated-minutes">Estimated minutes</label>
-      <input
-        id="detail-estimated-minutes"
-        type="number"
-        min="0"
-        value={estimatedMinutes}
-        onChange={(e) => setEstimatedMinutes(e.target.value)}
-      />
+      <div>
+        <Label htmlFor="detail-due-at">Due</Label>
+        <TextInput
+          id="detail-due-at"
+          type="datetime-local"
+          className="mono-figure"
+          value={dueAt}
+          onChange={(e) => setDueAt(e.target.value)}
+        />
+      </div>
 
       {updateTask.isError && (
-        <p role="alert">{apiErrorMessage(updateTask.error, 'Something went wrong saving this task.')}</p>
+        <p role="alert" className={styles.error}>
+          {apiErrorMessage(updateTask.error, 'Something went wrong saving this task.')}
+        </p>
       )}
 
-      <button type="submit" disabled={updateTask.isPending}>
+      <Button type="submit" variant="primary" disabled={updateTask.isPending}>
         Save
-      </button>
+      </Button>
     </form>
   )
 }

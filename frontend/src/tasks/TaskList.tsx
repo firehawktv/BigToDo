@@ -4,6 +4,7 @@ import { TaskItem } from './TaskItem.js'
 import { TaskForm } from './TaskForm.js'
 import { BreakdownModal } from './BreakdownModal.js'
 import type { Task } from '../api/types.js'
+import styles from './TaskList.module.css'
 
 export function TaskList() {
   const { data: tasks, isLoading, isError } = useTasksQuery({ status: 'open' })
@@ -16,9 +17,9 @@ export function TaskList() {
     <div>
       <TaskForm onCreated={() => {}} />
       {tasks !== undefined && tasks.length === 0 ? (
-        <p>Nothing open — you're all caught up.</p>
+        <p className={styles.empty}>Nothing open — you're all caught up.</p>
       ) : (
-        <ul>
+        <ul className={styles.rack}>
           {tasks?.map((task) => (
             <TaskItem key={task.id} task={task} onBreakdownRequested={setBreakdownTarget} />
           ))}

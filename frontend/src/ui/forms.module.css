@@ -1,0 +1,35 @@
+/* Shared styling for text inputs, textareas, and selects — the ruled-field
+   look: a slightly recessed cream well inside the surrounding card. */
+.field {
+  display: block;
+  width: 100%;
+  font: var(--text-body);
+  color: var(--ink);
+  background: var(--card-dim);
+  border: 1.5px solid var(--chrome-line);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+}
+
+.field::placeholder {
+  color: var(--ink-soft);
+}
+
+.field:focus-visible {
+  border-color: var(--amber);
+}
+
+textarea.field {
+  resize: vertical;
+  min-height: 4.5rem;
+  font-family: var(--font-sans);
+}
+
+.label {
+  display: block;
+  font: var(--text-label);
+  color: var(--ink-soft);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  margin-bottom: var(--space-1);
+}
